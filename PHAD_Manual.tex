@@ -1,0 +1,1841 @@
+%& -shell-escape
+\documentclass[oneside,12pt]{book}
+\usepackage[paperwidth=8.5in, paperheight=11in, top=1in, bottom=1in, left=1in, right=1in]{geometry} 
+%Sets Page Margins and landscape mode - Use showframe option to show borders
+\usepackage[usenames,dvipsnames]{color}  %  Allows for named colors
+\usepackage[ampersand]{easylist}  % Allows for nested lists
+\usepackage{amsmath, amsfonts, amssymb}
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{tikz}  % Used for flow chart
+\usepackage{multicol}  %  Allows for mulitple columns
+\usepackage{algpseudocode} % Allows commands for algorithms
+\usepackage{algorithm}  % Allows algorithms
+\usepackage{ulem}
+\usepackage{pdfpages}
+\usetikzlibrary{shapes,arrows} %Used for flow chart
+\usepackage[hidelinks,colorlinks]{hyperref}
+\usepackage{comment}
+\usepackage{listings}
+%Allows comment next to lines in lstlisting
+\newcommand*{\listcomment}[1]{\hfill\makebox[12.0cm][l]{#1}}%
+\usepackage{newfloat}
+
+%Sets up data file descriptions to act like floats
+\DeclareFloatingEnvironment[
+    fileext=los,
+    listname={List of Data Files},
+    name=Data File,
+    placement=tbhp,
+    within=section,
+]{datafile}
+%\PrepareListOf{datafile}{%
+%\renewcommand{\cftfigpresnum}{datafile}}
+
+%Control the bullets in the easylist
+\ListProperties(Hide=100, Hang=true, Progressive=5ex, Style*=$\blacksquare$ ,
+Style2*=$\square$ ,Style3*=$\bullet$ ,Style4*=$\circ$ ,Style5*=--)
+
+%Make vectors have bold font
+\renewcommand{\vec}{\mathbf}
+%Allows labeling align*
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}  
+%Draws a circle around a charecter
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
+
+%Command to make it easier to type Simo's name
+\newcommand{\Simo}{Sim\`{o}}
+
+\begin{document}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+\setlength{\columnsep}{0.4in}
+
+
+\begin{titlepage}
+
+\vspace*{\fill}
+
+\begin{center}
+\begin{Huge}\textbf{PHAD Manual}\end{Huge}
+
+\bigskip
+{\LARGE Revised \today}
+
+\end{center}
+
+\vspace*{\fill}
+
+\end{titlepage}
+
+
+
+%\begin{comment}
+%Roman numeral pages for contents
+\pagenumbering{roman}
+\begingroup
+
+
+\let\cleardoublepage\clearpage
+\tableofcontents
+\endgroup
+
+\begingroup
+\let\cleardoublepage\clearpage
+\listoftables
+%\listoffigures  %Only one figure
+\listofdatafiles
+\endgroup
+
+
+
+\newpage
+%\end{comment}
+
+\pagenumbering{arabic}
+
+\chapter{Running PHAD}
+
+PHAD is a cosy script written to be ran in parallel using the MPI version of COSY.  COSY can be obtained after registering at the \href{http://www.bt.pa.msu.edu/index_cosy.htm}{COSY website}.  After you register and download COSY, the COSY INFINITY Programmer's Manual details how to create the MPI version of cosy through the use of the version utility.  Details on how to do this are in sections 1.5.5
+Conversion of a Source File Using VERSION and 1.5.8
+Installation for Parallel Environments of the COSY INFINITY Programmer's Manual.  Some of these details are also covered in the \href{http://niu.edu/beamphysicscode/local_users/}{NIU Beam Physics Tutorial}.
+
+Once you have built the MPI version of the COSY executable on your machine, you will need to create the COSY.bin file.  This is done by downloading the cosy.fox file from MSU and executing the command \texttt{cosy cosy} within the same directory as the cosy.fox file.
+
+After extracting PHAD.zip, the next step is to build the FMM.  To do this change directories to \texttt{fmmcpp}.  Use the \texttt{make} command to build the FMM.  The command \texttt{source mpivars.sh} may be useful if errors occur due to locating libraries.  Copy the binary fmmcpp.intel or other to the same directory containing PHAD.fox.
+
+You can now run PHAD.  To run PHAD in serial mode use the command \texttt{cosy PHAD}.  A pbs script is included with PHAD.  This can be used to run PHAD in parallel.  
+
+
+See section \ref{sec:DataFiles} \nameref{sec:DataFiles} to learn how to change the input files for PHAD.
+
+
+
+\chapter{Background}
+
+\section{Unscaled Equations}
+
+Here we will denote the position of particle $i$ by $\vec{r}_i$.  The velocity of each particle is given by
+
+\begin{equation}
+\dfrac{\text{d}\vec{r}_i}{\text{d}t}=\dfrac{\vec{p}_i}{m \sqrt{1+\left(\dfrac{\| \vec{p}_i\| }{mc}\right)^2}}.
+\label{dervr}
+\end{equation}
+
+The force equation with external electric and magnetic field is given by 
+
+\begin{multline}
+\dfrac{\text{d}p_i}{\text{d}t}=q_i\left[
+\dfrac{1}{4 \pi \epsilon_0}
+\mathop{\sum}_{
+\begin{array}{c}
+{j=1}  \\
+{j \neq i}
+\end{array}}^N
+\dfrac{q_j\left((x_i-x_j)\vec{i}+(y_i-y_j)\vec{j}+\gamma^2(z_i-z_j)\vec{k}\right)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3\slash 2}}+\vec{E}_\text{external}\right. \\
+\left.+\dfrac{p_{x_i} \vec{i} + p_{y_i} \vec{j} + p_{z_i} \vec{k}}{m_i \sqrt{1+\left(
+ \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} \times \vec{B} \right].
+ \label{diffpall} 
+ \end{multline}
+Next, we will work out the details for the magnetic fields.
+
+$$v_i \times \vec{B}(x_i,y_i,z_i) =
+\left|
+\begin{array}{ccc}
+\vec{i} & \vec{j} & \vec{k} \\
+v_{x_i} & v_{y_i} & v_{z_i} \\
+B_{x_i}  & B_{y_i} & B_{z_i}
+\end{array}
+\right|=
+\left|
+\begin{array}{cc}
+v_{y_i} & v_{z_i} \\
+B_{y_i} & B_{z_i} \\
+\end{array}
+\right| 
+\vec{i} -
+\left|
+\begin{array}{cc}
+v_{x_i} & v_{z_i} \\
+B_{x_i} & B_{z_i} \\
+\end{array}
+\right| 
+\vec{j} +
+\left|
+\begin{array}{cc}
+v_{x_i} & v_{y_i} \\
+B_{x_i} & B_{y_i} \\
+\end{array}
+\right| 
+\vec{k}$$
+$$=(B_{z_i} v_{y_i} - B_{y_i} v_{z_i}) \vec{i} -
+(B_{z_i} v_{x_i} - B_{x_i} v_{z_i}) \vec{j} +
+(B_{y_i} v_{x_i} - B_{x_i} v_{y_i}) \vec{k}$$
+Set $Y_i=(x_i,y_i,z_i,p_{x_i},p_{y_i},p_{z_i})$ for particles one through $N$ in order to write the equations in a more compact way. Define the function $F_i$ by $F_i(Y_i(t),t)=Y_i'(t)$.  Using Eqn. (\ref{dervr}) and Eqn. (\ref{diffpall}) the set of equations for particle $i$ is
+\begin{equation}
+Y_i'=\left[
+\begin{array}{c}
+\dfrac{p_{x_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}
+\\
+\\
+\dfrac{p_{y_i}}{m_i \sqrt{1+\left(
+ \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}
+\\
+\\
+\dfrac{p_{z_i}}{m_i \sqrt{1+\left(
+ \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} 
+\\
+\\
+F_{i,4} (Y_i,t)+q_i E_{x_i}
+\\
+\\
+F_{i,5} (Y_i,t)+q_i E_{y_i}
+\\
+\\
+F_{i,6} (Y_i,t)+q_i E_{z_i}
+\end{array}
+\right]=F_i(Y_i,t)
+\label{diffYiall}
+\end{equation}
+where
+
+\begin{align*}
+F_{i,4} (Y_i,t)&=q_i\left[
+\dfrac{1}{4 \pi \epsilon_0}
+\mathop{\sum}_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{q_j(x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} +B_{z_i} v_{y_i} - B_{y_i} v_{z_i}\right]\\
+&=q_i \left[ \dfrac{1}{4 \pi \epsilon_0}\sum_{\stackrel{j=1}{j \neq i}}^N \dfrac{q_j(x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} \right.\\
+&\hspace*{6ex}\left.+B_{z_i} \dfrac{p_{y_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} - B_{y_i} \dfrac{p_{z_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} \right],
+\end{align*}
+
+
+\begin{align*}
+F_{i,5}(Y_i,t)&=q_i\left[
+\dfrac{1}{4 \pi \epsilon_0}
+\mathop{\sum}_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{q_j(y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}  -(B_{z_i} v_{x_i} - B_{x_i} v_{z_i})\right]\\
+&=q_i\left[ \dfrac{1}{4 \pi \epsilon_0} \mathop{\sum}_{\stackrel{j=1}{j \neq i}}^N \dfrac{q_j(y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right.\\
+&\left.\hspace*{5ex}-B_{z_i} \dfrac{p_{x_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}  + B_{x_i} \dfrac{p_{z_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}\right],
+\end{align*}
+and
+
+\begin{align*}
+F_{i,6}(Y_i,t)&=q_i\left[
+\dfrac{1}{4 \pi \epsilon_0}
+\mathop{\sum}_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{q_j\gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} +B_{y_i} v_{x_i} - B_{x_i} v_{y_i}\right]\\
+&=q_i\left[
+\dfrac{1}{4 \pi \epsilon_0}
+\mathop{\sum}_{\stackrel{j=1}{j \neq i}}^N \dfrac{q_j\gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right. \\
+&\left.\hspace*{6ex}+B_{y_i} \dfrac{p_{x_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} - B_{x_i} \dfrac{p_{y_i}}{m_i \sqrt{1+\left( \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}\right].
+\end{align*}
+
+Each of these will be scaled.  The scaling occurs in the FMM and in the \Simo integrator.  The scaling in the \Simo integrator is to ensure that the computed Taylor series for positions avoid divergence due to taking a large time step than the radius of convergence.
+
+\section{Scaling Notes}
+\label{sec:Scaling_Notes}
+The differential equations used to solve for the Coulomb interactions have scaled momentum and scaled time.  This scaling will be denoted using the {\Large $\hat{\cdot}$} notation.  There is also spacial scaling from the FMM.  The notation for this scaling will be {\Large $\tilde{\cdot}$}. Unscaled quantities will have neither of these accents.
+
+Setting $m$ to be the mass of a proton, $q$ to be an elementary charge, and $c$ to be the speed of light, each conversion between scaled and unscaled equation is given below.
+
+Unscaled to Scaled and Scaled to Unscaled:
+
+\begin{align*}
+\hat{t}&=\dfrac{t}{c} \hspace{0.75in} & f_i&=\dfrac{m_i}{m} \hspace{0.75in}& t&=c\hat{t} \hspace{0.75in}& m_i&=f_i \ m\\
+n_i&=\dfrac{q_i}{q} & & & q_i&=n_i \ q\\
+\hat{p}_{x_i}&=\dfrac{p_{x_i}}{m \ c} & \tilde{x}&=\dfrac{x-x_{\min}}{\text{Dzero}} & p_{x_i}&=\hat{p}_{x_i} \ m \ c & x&=\text{Dzero} \ \tilde{x} + x_{\min}\\
+\hat{p}_{y_i}&=\dfrac{p_{y_i}}{m \ c} & \tilde{y}&=\dfrac{y-y_{\min}}{\text{Dzero}} & p_{y_i}&=\hat{p}_{y_i} \ m \ c & y&=\text{Dzero} \ \tilde{y} + y_{\min} \numberthis \label{scalingvariables} \\ 
+\hat{p}_{z_i}&=\dfrac{p_{z_i}}{m \ c} & \tilde{z}&=\dfrac{z-z_{\min}}{\text{Dzero}} & p_{z_i}&=\hat{p}_{z_i} \ m \ c & z&=\text{Dzero} \ \tilde{z} + z_{\min}\\
+\hat{\vec{E}}&=\dfrac{\vec{E}}{m \ c} & \tilde{\vec{E}}&={\text{Dzero}}^2 \vec{E} & \vec{E}&=\hat{\vec{E}} \ m \ c & \vec{E}&=\dfrac{1}{{\text{Dzero}}^2} \ \tilde{\vec{E}}
+\end{align*}
+
+\section{Scaled Equations}
+
+To remove the problem of having a divergent Taylor series in the first three components of Eqn. (\ref{diffYiall}), we will introduce scaling in this section.  
+
+The first is a change to the time scaling. We define $\hat{t}=c \ t$.  
+
+\[\dfrac{\text{d}{Y_i}}{\text{d}\hat{t}}=\dfrac{\text{d}{Y_i}}{\text{d}t} \ \dfrac{\text{d}t}{\text{d} \hat{t}} = \dfrac{1}{c} \ \dfrac{\text{d}{Y_i}}{\text{d}t} \]
+
+An equivalent equation to Eqn. (\ref{diffYiall}) then is 
+
+\begin{equation}
+\dfrac{\text{d}{Y_i}}{\text{d}\hat{t}}=\left[
+\begin{array}{c}
+\dfrac{1}{c} \ \dfrac{p_{x_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}
+\\
+\\
+\dfrac{1}{c} \ \dfrac{p_{y_i}}{m_i \sqrt{1+\left(
+ \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}
+\\
+\\
+\dfrac{1}{c} \ \dfrac{p_{z_i}}{m_i \sqrt{1+\left(
+ \dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} 
+\\
+\\
+\dfrac{1}{c} \ \left[ F_{i,4} (Y_i,t)+q_i E_{x_i} \right]
+\\
+\\
+\dfrac{1}{c} \ \left[ F_{i,5} (Y_i,t)+q_i E_{y_i} \right]
+\\
+\\
+\dfrac{1}{c} \ \left[ F_{i,6} (Y_i,t)+q_i E_{z_i} \right]
+\end{array}
+\right]
+\label{diffYalltimec}
+\end{equation}
+
+The next scaling is done on the momentum.  We set $\hat{\vec{p}}_i=\dfrac{1}{mc} \ \vec{p}_i $.  We can then rewrite the first component of Eqn. (\ref{diffYalltimec}).
+\begin{align*}
+\dfrac{\text{d}x_i}{\text{d}\hat{t}}=\dfrac{p_{x_i}}{c \ m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}&= \dfrac{p_{x_i}}{m \ c \ f_i \sqrt{1+\left(\sqrt{\dfrac{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}{m_i^2 c^2}}\right)^2}}\\
+\\
+&=\dfrac{p_{x_i}}{m \ c \ f_i \sqrt{1+\left(\sqrt{\dfrac{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}{f_i^2 \ m^2 \ c^2}}\right)^2}}\\
+\\
+&=\dfrac{p_{x_i}}{m \ c \ \sqrt{f_i^2+\left(\sqrt{\dfrac{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}{m^2 \ c^2}}\right)^2}}\\
+\\
+&=\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\left(\sqrt{\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}\right)^2}}\\
+\\
+&=\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}
+\numberthis \label{scaledx}
+\end{align*}
+The expressions for $\dfrac{\text{d}y_i}{\text{d}\hat{t}}$ and $\dfrac{\text{d}z_i}{\text{d}\hat{t}}$ are similarly obtained.  Next, we will find an expression for $\dfrac{\text{d} \hat{p}_{x_i}}{\text{d} \hat{t}}$.
+
+\begin{align*}
+\dfrac{\text{d} \hat{p}_{x_i}}{\text{d} \hat{t}}&=\dfrac{\text{d} p_{x_i}}{\text{d} \hat{t}} \ \dfrac{\text{d}\hat{p}_{x_i}}{\text{d} p_{x_i}}=\dfrac{1}{mc} \ \dfrac{\text{d} p_{x_i}}{\text{d} \hat{t}}\\
+\\
+&=\dfrac{1}{mc} \ \dfrac{1}{c} \ \left[ F_{i,4} (Y_i,t)+q_i E_{x_i} \right]\\
+\\
+&=\dfrac{1}{mc^2} F_{i,4} (Y_i,t) + \dfrac{q \ n_i}{mc^2} \  E_{x_i}
+\end{align*}
+
+\begin{small}
+\begin{multline*}
+\dfrac{F_{i,4} (Y_i,t)}{mc^2} =\dfrac{q_i}{mc^2} \left[ \dfrac{1}{4 \pi \epsilon_0}\sum_{\stackrel{j=1}{j \neq i}}^N \dfrac{q_j(x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} \right.\\
+\left.+B_{z_i} \dfrac{p_{y_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} - B_{y_i} \dfrac{p_{z_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} \right]
+\end{multline*}
+\end{small}
+
+Consider each term.
+
+\begin{multline*}
+\dfrac{q_i}{mc^2}\dfrac{1}{4 \pi \epsilon_0}\sum_{\stackrel{j=1}{j \neq i}}^N \dfrac{q_j(x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\\
+=\dfrac{n_i q^2}{4 \ \pi \ \epsilon_0 \ m \ c^2}\sum_{\stackrel{j=1}{j \neq i}}^N \dfrac{n_j(x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}.
+\end{multline*}
+
+From Eqn. (\ref{scaledx}),
+
+\begin{align*}
+\dfrac{q_i}{mc^2}B_{z_i} \dfrac{p_{y_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}
+&=\dfrac{q \ n_i}{m \ c}B_{z_i} \dfrac{p_{y_i}}{c \ m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}}\\
+&=\dfrac{q \ n_i}{m \ c}B_{z_i} \dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}.
+\end{align*}
+
+Similarly,
+
+\begin{align*}
+\dfrac{q_i}{mc^2} B_{y_i} \dfrac{p_{z_i}}{m_i \sqrt{1+\left(\dfrac{\sqrt{p_{x_i}^2 + p_{y_i}^2 + p_{z_i}^2}}{m_i c}\right)^2}} &=\dfrac{q \ n_i}{m \ c} B_{y_i} \dfrac{\hat{p}_{z_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}.
+\end{align*}
+
+Set $\hat{F}_{i,4} (\hat{Y}_i,t)=\dfrac{F_{i,4} (Y_i,t)}{mc^2}$, $\hat{F}_{i,5} (\hat{Y}_i,t)=\dfrac{F_{i,5} (Y_i,t)}{mc^2}$, and $\hat{F}_{i,6} (\hat{Y}_i,t)=\dfrac{F_{i,6} (Y_i,t)}{mc^2}$ where $\hat{Y}_i=(x_i,y_i,z_i,\hat{p}_{x_i},\hat{p}_{y_i},\hat{p}_{z_i})$.  Also, set
+\[\hat{v}_{x_i}=\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}, \
+\hat{v}_{y_i}=\dfrac{\hat{p}_{y_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}, \ \text{and} \
+\hat{v}_{z_i}=\dfrac{\hat{p}_{z_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2 + \hat{p}_{y_i}^2 + \hat{p}_{z_i}^2}}.\]
+
+
+The overall form of the equations with initial condition is given by:
+\begin{equation}
+\hat{Y}'=\dfrac{\text{d} \hat{Y}_i}{\text{d} \hat{t}}
+=\left[\begin{array}{c}
+\hat{Y}_1\\
+\hat{Y}_2\\
+\vdots\\
+\hat{Y}_{N-1}\\
+\hat{Y}_{N}\end{array} \right]'
+=\left[ \begin{array}{c}
+\hat{F}_1(\hat{Y}_1,\hat{t})\\
+\hat{F}_2(\hat{Y}_2,\hat{t})\\
+\vdots\\
+\hat{F}_{N-1}(\hat{Y}_{N-1},\hat{t})\\
+\hat{F}_N(\hat{Y}_{N},\hat{t})\end{array} \right]=\hat{F}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\hat{Y}_0
+\label{overall}
+\end{equation}
+where
+
+\resizebox{1\textwidth}{!}{
+\begin{minipage}{1.25\textwidth}
+\begin{equation}
+\hat{F}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{y_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{z_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{x_i}+c \ \Big( B_{z_i} \hat{v}_{y_i} - B_{y_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{y_i}+ c \ \Big( B_{z_i} \hat{v}_{x_i} -  \ B_{x_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+ E_{z_i}+ c \ \Big( B_{y_i} \hat{v}_{x_i} -  B_{x_i} \hat{v}_{y_i} \Big) \right]
+\end{array}
+\right]
+\label{allparts}
+\end{equation}
+\end{minipage}
+}
+
+\section{Strang Splitting (Overall Code Theory)}
+Consider the ODE
+From the last section, overall form of the equations with initial condition is given by:
+\begin{equation}
+\hat{Y}'=\dfrac{\text{d} \hat{Y}_i}{\text{d} \hat{t}}
+=\left[\begin{array}{c}
+\hat{Y}_1\\
+\hat{Y}_2\\
+\vdots\\
+\hat{Y}_{N-1}\\
+\hat{Y}_{N}\end{array} \right]'
+=\left[ \begin{array}{c}
+\hat{F}_1(\hat{Y}_1,\hat{t})\\
+\hat{F}_2(\hat{Y}_2,\hat{t})\\
+\vdots\\
+\hat{F}_{N-1}(\hat{Y}_{N-1},\hat{t})\\
+\hat{F}_N(\hat{Y}_{N},\hat{t})\end{array} \right]=\hat{F}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\hat{Y}_0
+\end{equation}
+where
+
+\resizebox{1\textwidth}{!}{
+\begin{minipage}{1.25\textwidth}
+\begin{equation}
+\hat{F}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{y_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{z_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{x_i}+c \ \Big( B_{z_i} \hat{v}_{y_i} - B_{y_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{y_i}+ c \ \Big( B_{z_i} \hat{v}_{x_i} -  \ B_{x_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j=1}{j \neq i}}^N
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+ E_{z_i}+ c \ \Big( B_{y_i} \hat{v}_{x_i} -  B_{x_i} \hat{v}_{y_i} \Big) \right]
+\end{array}
+\right]
+\end{equation}
+\end{minipage}
+}
+
+Let $S_i$ be the set of indexes of the particles in the neighbourhood of particle $i$.  Set
+
+\resizebox{1\textwidth}{!}{
+\begin{minipage}{1.25\textwidth}
+\begin{equation}
+\hat{F}^{[1]}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+\dfrac{\hat{p}_{x_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{y_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{\hat{p}_{z_i}}{\sqrt{f_i^2+\hat{p}_{x_i}^2+\hat{p}_{y_i}^2+\hat{p}_{z_i}^2}}
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j \neq i}{j \in S_i}}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{x_i}+c \ \Big( B_{z_i} \hat{v}_{y_i} - B_{y_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j \neq i}{j \in S_i}}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+E_{y_i}+ c \ \Big( B_{z_i} \hat{v}_{x_i} -  \ B_{x_i} \hat{v}_{z_i} \Big) \right]
+\\
+\\
+\dfrac{q \ n_i}{m c^2} \left[\dfrac{q}{4 \pi \epsilon_0}
+\displaystyle\sum\limits_{\stackrel{j \neq i}{j \in S_i}}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}+ E_{z_i}+ c \ \Big( B_{y_i} \hat{v}_{x_i} -  B_{x_i} \hat{v}_{y_i} \Big) \right]
+\end{array}
+\right]
+\label{firstpart}
+\end{equation}
+\end{minipage}
+}
+
+And set
+\begin{equation}
+\hat{F}^{[2]}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+0
+\\
+\\
+0
+\\
+\\
+0
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\label{secondpart}
+\end{equation}
+
+The sum of right hand sides of \eqref{firstpart} and \eqref{secondpart} is the right hand side of \eqref{allparts}.  That is,
+
+\resizebox{1\textwidth}{!}{
+\begin{minipage}{1.1\textwidth}
+\begin{equation}
+\hat{F}(\hat{Y},\hat{t})=\left[\begin{array}{c}
+\hat{Y}_1\\
+\hat{Y}_2\\
+\vdots\\
+\hat{Y}_{N-1}\\
+\hat{Y}_{N}\end{array} \right]'
+=\left[ \begin{array}{c}
+\hat{F}^{[1]}_1(\hat{Y}_1,\hat{t})\\
+\hat{F}^{[1]}_2(\hat{Y}_2,\hat{t})\\
+\vdots\\
+\hat{F}^{[1]}_{N-1}(\hat{Y}_{N-1},\hat{t})\\
+\hat{F}^{[1]}_N(\hat{Y}_{N},\hat{t})\end{array} \right]
++\left[ \begin{array}{c}
+\hat{F}^{[2]}_1(\hat{Y}_1,\hat{t})\\
+\hat{F}^{[2]}_2(\hat{Y}_2,\hat{t})\\
+\vdots\\
+\hat{F}^{[2]}_{N-1}(\hat{Y}_{N-1},\hat{t})\\
+\hat{F}^{[2]}_N(\hat{Y}_{N},\hat{t})\end{array} \right]
+=\hat{F}^{[1]}(\hat{Y},\hat{t})+\hat{F}^{[2]}(\hat{Y},\hat{t})
+\label{allpartssplit}
+\end{equation}
+\end{minipage}
+}
+
+with $\hat{Y}(0)=\hat{Y}_0$.  We then will solve the three IVP's.  First,
+\[\hat{Y}'=\hat{F}^{[2]}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\hat{Y}_0\]
+at $t= \ ^h\slash_2$ to get $\phi^{[2]}_{^h \slash _2 ,1}$.  Then,
+\[\hat{Y}'=\hat{F}^{[1]}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\phi^{[2]}_{^h \slash _2,1}(\hat{Y}_0)\]
+at $t= h$ to get $\phi^{[1]}_{h,1}$.  Finally,
+\[\hat{Y}'=\hat{F}^{[2]}(\hat{Y},\hat{t}) \hspace{0.5in} y(0)=\phi^{[1]}_{h,1} \circ \phi^{[2]}_{^h \slash _2,1}(\hat{Y}_0)\]
+to get $\phi^{[2]}_{^h \slash 2,2}$ at $t=^h \slash 2$.  Composing we get
+$$\hat{Y}_1=S^1_h(\hat{Y}_0)=\phi^{[2]}_{^h\slash_2,2} \circ \phi^{[1]}_{h,1} \circ \phi^{[2]}_{^h \slash 2,1}(\hat{Y}_0)$$
+This process is repeated over several time steps by solving mutliple IVP's.
+First,
+\[\hat{Y}'=\hat{F}^{[2]}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\hat{Y}_{k-1}\]
+at $t= \ ^h\slash_2$ to get $\phi^{[2]}_{^h \slash _2 ,2k-1}$.  Then,
+\[\hat{Y}'=\hat{F}^{[1]}(\hat{Y},\hat{t}) \hspace{0.5in} \hat{Y}(0)=\phi^{[2]}_{^h \slash _2,2k-1}(\hat{Y}_{k-1})\]
+at $t= h$ to get $\phi^{[1]}_{h,k}$.  Finally,
+\[y'=\hat{F}^{[2]}(y,\hat{t}) \hspace{0.5in} \hat{Y}(0)=\phi^{[1]}_{h,k} \circ \phi^{[2]}_{^h \slash _2,2k-1}(\hat{Y}_{k-1})\]
+to get $\phi^{[2]}_{^h \slash 2,2k}$ at $t=^h \slash 2$.  Composing we get
+$$Y_k=S^k_h(Y_{k-1})=\phi^{[2]}_{^h\slash_2,2k} \circ \phi^{[1]}_{h,k} \circ \phi^{[2]}_{^h \slash 2,2k-1}(\hat{Y}_{k-1})$$
+After $n$ steps we get a chain.
+\begin{footnotesize}
+\begin{equation}
+\phi^{[2]}_{^h\slash_2,2n} \circ \phi^{[1]}_{h,n} \circ \phi^{[2]}_{^h \slash 2,2n-1} \circ 
+\phi^{[2]}_{^h\slash_2,2n-2} \circ \phi^{[1]}_{h,n-1} \circ \phi^{[2]}_{^h \slash 2,2n-3} \circ \cdots \circ \phi^{[2]}_{^h\slash_2,4} \circ \phi^{[1]}_{h,2} \circ \phi^{[2]}_{^h \slash 2,3} \circ \phi^{[2]}_{^h\slash_2,2} \circ \phi^{[1]}_{h,1} \circ \phi^{[2]}_{^h \slash 2,1}(Y_0)
+\label{bigstrang}
+\end{equation}
+\end{footnotesize}
+In the code, the FMM is used to generate the solutions $\phi^{[2]}$ and the \Simo integrator is used to generate the solutions $\phi^{[1]}$.  Because the particle positions are not changed in Eqn.\ \ref{secondpart}, the FMM can be ran \emph{once} to compute pairs $\phi^{[2]}_{^h \slash 2,2k} \circ \phi^{[2]}_{^h\slash_2,2k+1}$ for $2 \leq k \leq n-1$ if care is taken to add or subtract the contributions of particles between the sets $S_i(t_k)$ and $S_i(t_k+1)$ between time steps.
+
+There are then two separate ``long range'' integrators contained within one procedure.  The regular one is for the odd $\phi^{[2]}_{^h\slash_2,2k+1}$ and the modified is for even $\phi^{[2]}_{^h\slash_2,2k}$.  Most of the long range integrations are computed following a sequence starting with the FMM, then the modified long range integrator, and finally the regular long range integrator.  The positions remain unchanged for these integrators, however the neighborhood containing particle $i$, $S_i$, are different for the modified and regular integrators.  The $S_i$ for the regular long range integrator are defined by the FMM on the positions after to the preceding \Simo integrator (the previous FMM).  The $S_i$ for the modified long range integrator are defined by the FMM on the positions before the preceding \Simo integrator (the FMM before the previous FMM).
+\begin{footnotesize}
+\begin{equation}
+{\color{blue}\phi^{[2]}_{^h\slash_2,2n}} \circ 
+{\color{green}\phi^{[1]}_{h,n}} \circ 
+{\color{red}\phi^{[2]}_{^h \slash 2,2n-1}} \circ 
+{\color{blue}\phi^{[2]}_{^h\slash_2,2n-2}} \circ 
+{\color{green}\phi^{[1]}_{h,n-1}} \circ 
+{\color{red}\phi^{[2]}_{^h \slash 2,2n-3}} \circ \cdots \circ 
+{\color{blue}\phi^{[2]}_{^h\slash_2,4}} \circ 
+{\color{green}\phi^{[1]}_{h,2}} \circ 
+{\color{red}\phi^{[2]}_{^h \slash 2,3}} \circ 
+{\color{blue}\phi^{[2]}_{^h\slash_2,2}} \circ 
+{\color{green}\phi^{[1]}_{h,1}} \circ 
+{\color{red}\phi^{[2]}_{^h \slash 2,1}}(Y_0)
+\label{bigstrangcolor}
+\end{equation}
+\end{footnotesize}
+This colored version of Eqn.\ \ref{bigstrang} shows red regular long range integrations, green \Simo integrations, and blue modified long range integrations.  Each red/blue pair is computed using one FMM computation.
+
+\subsection{FMM Technical Detail}
+\label{subsec:FMM_Tech_Det}
+
+The FMM was originally developed to find expansions of the function
+\[G(x,y,z)=
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j}{[(x-x_j)^2+(y-y_j)^2+(z-z_j)^2]^{3 \slash 2}}\]
+given the coordinates $(x_k,y_k,z_k)$ of particles $k=1,2,\dots,N$ in a data file.  To handle relativistic gamma in PHAD, the coordinates passed to the FMM are $(x_k,y_k,\gamma z_k)$ are stored in a data file.  Scaling the $z$ coordinate then adapts the original FMM code to compute the expansion of
+\begin{align*}
+G(x,y,\gamma z)&=
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j}{[(x-x_j)^2+(y-y_j)^2+(\gamma z-\gamma z_j)^2]^{3 \slash 2}}\\
+&=\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j}{[(x-x_j)^2+(y-y_j)^2+\gamma^2( z- z_j)^2]^{3 \slash 2}}
+\end{align*}
+needed for computing the right hand side of \eqref{secondpart}.
+
+
+\chapter{The PHAD Code}
+
+\section{Code Overview}
+
+The following flowchart gives an outline of the major components of the code:
+\begin{center}
+\begin{figure}[ht]
+\resizebox{4.7in}{!}{
+\begin{large}
+\tikzstyle{decision} = [diamond, draw, fill=red!20, 
+    text width=4.5em, text badly centered, node distance=4.5cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw, fill=blue!10, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+\tikzstyle{line} = [draw, -triangle 45]
+\tikzstyle{cloud} = [rectangle, draw, fill=green!10, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+\tikzstyle{cloud2} = [rectangle, draw, fill=yellow!30, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+    
+\begin{tikzpicture}[node distance = 4cm, auto]
+    % Place nodes
+    \node [block] (FMM0) {FMM};
+    \node [cloud, left of=FMM0] (IO1) {Read Unscaled Data};
+    \node [cloud, right of=FMM0] (IO2) {Scaled Data};
+    \node [block, right of=IO2] (REGLR0) {Long Range Integrator};
+    \node [cloud, right of=REGLR0] (IO3) {Scaled Data};
+    \node [block, below of=IO3] (PIC0) {\Simo Integrator};
+    \node [cloud, left of=PIC0] (IO4) {Unscaled Data};
+    \node [block, left of=IO4] (FMM) {FMM};
+    \node [cloud, left of=FMM] (IO5) {Scaled Data};
+    \node [block, left of=IO5] (MODLR) {Modified Long Range Integrator};
+    \node [cloud, below of=MODLR] (IO6) {Scaled Data};
+    \node [cloud2, below of=IO6] (DATA) {Write Unscaled Data};
+    \node [block, right of=IO6] (REGLR) {Long Range Integrator};
+    \node [cloud, right of=REGLR] (IO7) {Scaled Data};
+    \node [decision, right of=IO7] (decide) {{\normalsize Are All Time Steps Done?}};
+    \node [cloud, below of=DATA] (IO10) {Scaled Data};
+    \node [block, right of=IO10] (MODLRF) {Modified Long Range Integrator};
+    \node [cloud, right of=MODLRF] (IO9) {Scaled Data};
+    \node [block, right of=IO9] (FMMF) {FMM};
+    \node [cloud, right of=FMMF] (IO8) {Unscaled Data};
+    \node [block, above of=IO8] (PICF) {\Simo Integrator};
+    % Draw edges
+    \path [line] (IO1) -- (FMM0);
+    \path [line] (FMM0) -- (IO2);
+    \path [line] (IO2) -- (REGLR0);
+    \path [line] (REGLR0) -- (IO3);
+    \path [line] (IO3) -- (PIC0);
+    \path [line] (PIC0) -- (IO4);
+    \path [line] (IO4) -- (FMM);
+    \path [line] (FMM) -- (IO5);
+    \path [line] (IO5) -- (MODLR);
+    \path [line] (MODLR) -- (IO6);
+    \path [line] (IO6) -- (REGLR);
+    \path [line] (IO6) -- (DATA);
+    \path [line] (REGLR) -- (IO7);
+    \path [line] (IO7) -- (decide);
+    \path [line] (decide) -- node {no}(PIC0);
+    \path [line] (decide) -- node {yes}(PICF);
+    \path [line] (PICF) -- (IO8);
+    \path [line] (IO8) -- (FMMF);
+    \path [line] (FMMF) -- (IO9);
+    \path [line] (IO9) -- (MODLRF);
+    \path [line] (MODLRF) -- (IO10);
+    \path [line] (IO10) -- (DATA);
+\end{tikzpicture}
+\end{large}
+}
+\caption{Code flowchart}
+\end{figure}
+\end{center}
+
+The Scaled Data that is passed between components is that described in Section \ref{sec:Scaling_Notes}.  The Unscaled Data passed to the FMM has $z$ coordinates multiplied by $\gamma$ as described in Section \ref{subsec:FMM_Tech_Det}.
+
+\section{Procedure Nesting}
+
+{\bf\color{red} NEEDS UPDATING}
+
+\begin{easylist}
+\ListProperties(Progressive=2ex)
+& PROCEDURE RUN \hfill (Sets Variable Memory)
+&& PROCEDURE OPEN{\_}INITIALOUTPUT{\_}FILES
+&& ENDPROCEDURE \{OPEN{\_}INITIALOUTPUT{\_}FILES\}
+&& PROCEDURE GET{\_}MPI{\_}INFO
+&& ENDPROCEDURE \{PROCEDURE GET{\_}MPI{\_}INFO\}
+&& PROCEDURE BARRIER
+&& ENDPROCEDURE \{BARRIER\}
+&& PROCEDURE CLOSE{\_}INITIALOUTPUT{\_}FILES
+&& ENDPROCEDURE \{CLOSE{\_}INITIALOUTPUT{\_}FILES\}
+&& PROCEDURE INITIALIZEVARIABLEs
+&& ENDPROCEDURE \{INITIALIZEVARIABLEs\}
+&& PROCEDURE CALLCONSTANTS
+&& ENDPROCEDURE \{CALLCONSTANTS\}
+&& PROCEDURE GET{\_}FMMCPP{\_}PARAMS
+&& ENDPROCEDURE \{GET{\_}FMMCPP{\_}PARAMS\}
+&& PROCEDURE GENERATE{\_}RANDOM{\_}DATA
+&& ENDPROCEDURE \{GENERATE{\_}RANDOM{\_}DATA\}
+&& PROCEDURE GET{\_}LOOP{\_}LIMITS
+&& ENDPROCEDURE \{GET{\_}LOOP{\_}LIMITS\}
+&& PROCEDURE STARTER \hfill (Sets Global Pass Through Variables)
+&&& PROCEDURE MULTIPOLE
+&&& ENDPROCEDURE \{MULTIPOLE\}
+&&& PROCEDURE M2M 
+&&& ENDPROCEDURE \{M2M\}
+&&& PROCEDURE M2L
+&&& ENDPROCEDURE \{M2L\}
+&&& PROCEDURE L2L
+&&& ENDPROCEDURE \{L2L\}
+&&& PROCEDURE L2P
+&&& ENDPROCEDURE \{L2P\}
+&&& PROCEDURE FMM
+&&&& PROCEDURE FMMWRAP
+&&&&& PROCEDURE FMMUP
+&&&&& ENDPROCEDURE \{FMMUP\}
+&&&&& PROCEDURE FMMDOWN
+&&&&& ENDPROCEDURE \{FMMDOWN\}
+&&&&& PROCEDURE \{FMMDIRECT\}
+&&&&& ENDPROCEDURE \{FMMDIRECT\}
+&&&& ENDPROCEDURE \{FMMWRAP\}
+&&& ENDPROCEDURE \{FMM\}
+&&& PROCEDURE INPUT{\_}INITIAL{\_}config
+&&& ENDPROCEDURE \{INPUT{\_}INITIAL{\_}config\}
+&&& PROCEDURE INPUT{\_}INITIAL{\_}momenta
+&&& ENDPROCEDURE INPUT{\_}INITIAL{\_}momenta
+&&& PROCEDURE INPUT{\_}INITIAL{\_}massANDcharge
+&&& ENDPROCEDURE \{INPUT{\_}INITIAL{\_}massANDcharge\}
+&&& PROCEDURE RELGCALC
+&&& ENDPROCEDURE \{RELGCALC\}
+&&& PROCEDURE PICARDINT
+&&& ENDPROCEDURE PICARDINT
+&&& PROCEDURE LNGRNGINT
+&&& ENDPROCEDURE \{LNGRNGINT\}
+&&& PROCEDURE MODLNGRNGINT
+&&& ENDPROCEDURE \{MODLNGRNGINT\}
+&&& PROCEDURE OPEN{\_}INITIALVELOCITY{\_}OUTFILES
+&&& ENDPROCEDURE \{OPEN{\_}INITIALVELOCITY{\_}OUTFILES\}
+&&& PROCEDURE CLOSE{\_}INITIALVELOCITY{\_}OUTFILES
+&&& ENDPROCEDURE CLOSE{\_}INITIALVELOCITY{\_}OUTFILES
+&&& PROCEDURE OPEN{\_}BETACALC{\_}OUTFILES
+&&& ENDPROCEDURE OPEN{\_}BETACALC{\_}OUTFILES
+&&& PROCEDURE CLOSE{\_}BETACALC{\_}OUTFILES
+&&& PROCEDURE FMMWITHINTEGRATORS \hspace*{\fill}(Main Execution)
+&&& ENDPROCEDURE \{FMMWITHINTEGRATORS\}
+&&  ENDPROCEDURE \{STARTER\}
+& ENDPROCEDURE \{RUN\}
+\end{easylist}
+
+\clearpage
+
+\section{Data files}
+\label{sec:DataFiles}
+
+The three kinds of data files in within PHAD are initial data files, pass through data files, and output data files.  Naturally, the initial data files are those containing inputs.  Pass through data files are used to communicate between the COSY execution and the C++ execution of the FMM.  
+
+\subsection{Input data files}
+
+{\bf\color{red} NEEDS UPDATING}
+
+The file phad-mpi.input specifies many input parameters for the code.  It also specifies file names and locations of the initial data.  This file is read in the procedure GET{\_}FMMCPP{\_}PARAMS. 
+
+\begin{datafile}
+\begin{lstlisting}[
+    basicstyle=\small,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=2,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    escapechar=\&,    
+]
+tmp/ &\listcomment{Sets path of FMM data files (filepath)}&
+./fmmcpp.intel &\listcomment{Sets relative path from the above to FMM executable (fmmcpp{\_}program)}&
+1100 &\listcomment{Number of particles (num{\_}of{\_}particles)}&
+1100 &\listcomment{Number of targets (num{\_}of{\_}targets)}&
+11000 &\listcomment{Sets the maximum number of boxes (max{\_}num{\_}of{\_}boxes)}&
+400 &\listcomment{Sets ? (qmax)}&
+5 &\listcomment{Order of FMM (fmm{\_}order)}&                            
+1  &\listcomment{Number of Picard integrator sub-time steps per time step (max{\_}pic{\_}order)}&
+50  &\listcomment{One output per this many time steps (OUTPUTERESOLUTION)}&
+7  &\listcomment{Maximum Picard Integrator order (max{\_}pic{\_}order)}&
+200  &\listcomment{Number of timesteps to perform (num{\_}of{\_}timesteps)}&
+0.001  &\listcomment{time step size (timestepsize)}&
+100  &\listcomment{NPR, ?}&
+proton_outer  &\listcomment{Name of ssv containing the initial positions of the particles. (proton\_outer.ssv)}&
+momenta  &\listcomment{Sets data file containing initial momentum (momentafile.ssv)}&
+masscharge  &\listcomment{Sets data file containing particle masses and charges (masschargefile.ssv)}&
+5000 &\listcomment{? (numtimesteptoreplacecordinates)}&
+50 &\listcomment{? (RESSTPSSIZE)}&
+0 &\listcomment{? (apprelaunch)}&
+proton_outer &\listcomment{? (datafileBeforeRelaunch)}&
+\end{lstlisting}
+\caption{phad-mpi.input}
+\label{df:phad-mpi.input}
+\end{datafile}
+
+Number of lines in each file proton{\_}outer, momentafile.ssv, and masschargefile.ssv must equal the number of targets.  Each line of the data file momentafile.ssv contains the scaled momentum $\hat{p}$ as in \eqref{scalingvariables}.
+
+The file proton{\_}outer contains the positions of the particles.
+\begin{datafile}
+\begin{lstlisting}[
+    basicstyle=\small,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=2,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    escapechar=\&,    
+]
+&${x_1}$& &${y_1}$& &${z_1}$&
+&${x_2}$& &${y_2}$& &${z_2}$&
+&${x_3}$& &${y_3}$& &${z_3}$&
+\end{lstlisting}
+\vspace*{-1ex}
+
+\hspace*{2ex}$\vdots$
+
+\hspace*{-3.5ex}$N$ \ ${x_N}$ ${y_N}$ ${z_N}$
+\caption{protonouter.ssv}
+\label{df:protonouter.ssv}
+\end{datafile}
+
+
+\begin{datafile}
+\begin{lstlisting}[
+    basicstyle=\small,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=2,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    escapechar=\&,    
+]
+&$\hat{p}_{x_1}$& &$\hat{p}_{y_1}$& &$\hat{p}_{z_1}$&
+&$\hat{p}_{x_2}$& &$\hat{p}_{y_2}$& &$\hat{p}_{z_2}$&
+&$\hat{p}_{x_3}$& &$\hat{p}_{y_3}$& &$\hat{p}_{z_3}$&
+\end{lstlisting}
+\vspace*{-1ex}
+
+\hspace*{4.2ex}$\vdots$
+
+\hspace*{-3.5ex}$N$ \ $\hat{p}_{x_N}$ $\hat{p}_{y_N}$ $\hat{p}_{z_N}$
+\caption{momenta.ssv}
+\label{df:momenta.ssv}
+\end{datafile}
+
+Each line of the data file masscharge.ssv is an ordered pair of the particles scaled mass $\hat{f}$ and scaled charge $\hat{q}$ relative to the mass and charge of a proton as in \eqref{scalingvariables}
+
+
+
+\begin{datafile}
+\begin{lstlisting}[
+    basicstyle=\small,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=2,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    escapechar=\&,    
+]
+&$\hat{f}_{1}$& &$\hat{q}_{1}$&
+&$\hat{f}_{2}$& &$\hat{q}_{2}$&
+&$\hat{f}_{3}$& &$\hat{q}_{3}$&
+\end{lstlisting}
+\vspace*{-1ex}
+
+\hspace*{2ex}$\vdots$
+
+\hspace*{-3.5ex}$N$ \ $\hat{f}_{N}$ $\hat{q}_{N}$
+\caption{masscharge.ssv}
+\label{df:masscharge.ssv}
+\end{datafile}
+
+
+
+
+
+\begin{table}
+\begin{tabular}{|l|c|p{4.5in}|}
+\hline
+\multicolumn{3}{|c|}{\bf Input data files}\\
+\hline
+{\bf Name} & {\bf Unit} & {\bf Purpose}\\
+\hline
+\nameref{df:phad-mpi.input} & 77 & Initial code parameters read by GET{\_}FMMCPP{\_}PARAMS\\
+\hline
+momenta.ssv & 55 & Initial scaled momentum read by INPUT{\_}INITIAL{\_}momenta\\
+\hline
+mass{\_}charge.ssv & 79 & Initial scaled particle masses and charges read by \mbox{INPUT{\_}INITIAL{\_}massANDcharge}\\
+\hline
+
+\end{tabular}
+\caption{Data File Summary}
+\label{table:DatFileSum}
+\end{table}
+
+
+
+\section{Global functions}
+
+{\bf\color{red} NEEDS UPDATING}
+
+\subsection{Function SS (substring)}
+
+\subsection{Function STR2REAL (string to real)}
+
+\subsection{Function PARSELINE}
+
+\subsection{Function PARSELINE2}
+
+\section{Procedure RUN}
+
+\subsection{RUN Global Variables}
+
+The following table describes the variables that are used to set storage in the code.
+
+\bigskip
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{3.5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+qmax & 1 & Largest q value for FMM\\
+\hline
+num{\_}of{\_}particles & 1 & Number of Particles\\
+\hline
+max{\_}num{\_}of{\_}boxes & 1 & Maximum Number of Boxes\\
+\hline
+num{\_}of{\_}targets & 1 & Number of Targets\\
+\hline
+max{\_}pic{\_}order & 1 & Maximum Picard Integration Order\\
+\hline
+\end{tabular}
+\caption{Table of Run Global Variables}
+\end{table}
+\end{center}
+
+\clearpage
+
+\section{Procedure STARTER}
+
+\subsection{STARTER Variables}
+
+{\bf\color{red} NEEDS UPDATING}
+
+The following three tables give the variable names, their memory requirements, and a description of what they do.
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{2.7in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+h & 1 & Time Step Size\\
+\hline
+NTS & 1 & Number of Time Steps+1\\
+\hline
+INITIAL & 1 & Variable that indicates 1/0 whether a time step is the first time step.\\
+\hline
+locexpnode & $_\text{order+2}C_3$ $\times$ number of boxes & Gives the local expansion of the electric field due to far particles. \\
+\hline 
+sourcect & 1 $\times$ number of boxes & Gives the number of particles in each box\\
+\hline
+sourcenumbs & $q$ $\times$ number of boxes & lists the particle indices in each box\\
+\hline
+neighbct & 1 $\times$ number of boxes & Gives the number of particles in each neighbourhood by box number (not including particles in the box)\\
+\hline 
+neighnumbs & $q$ $\times$ number of boxes & lists the neighbourhood particle indices in each box (not including ones in the box)\\
+\hline
+sourcectprev & 1 $\times$ number of boxes & Gives the number of particles in each box from previous FMM\\
+\hline
+sourcenumbsprev & $q$ $\times$ number of boxes & lists the particle indices in each box from previous FMM\\
+\hline
+neighbctprev & 1 $\times$ number of boxes & Gives the number of particles in each neighbourhood by box number (not including particles in the box) from previous FMM\\
+\hline 
+neighnumbsprev & $q$ $\times$ number of boxes & lists the neighbourhood particle indices in each box (not including ones in the box) from previous FMM\\
+\hline
+leaf\_cx & $1$ $\times$ number of boxes & lists the x component of each box center.\\
+\hline
+leaf\_cy & $1$ $\times$ number of boxes & lists the y component of each box center.\\
+\hline
+leaf\_cz & $1$ $\times$ number of boxes & lists the z component of each box center.\\
+\hline
+%leaf\_cx2 & $1$ $\times$ number of boxes & lists the x component of each box center from previous FMM.\\
+%\hline
+%leaf\_cy2 & $1$ $\times$ number of boxes & lists the y component of each box center from previous FMM.\\
+%\hline
+%leaf\_cz2 & $1$ $\times$ number of boxes & lists the z component of each box center from previous FMM.\\
+%\hline
+\end{tabular}
+\caption{Table of Starter Global Variables}
+\end{table}
+\end{center}
+
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{2.7in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+X\_min & 1 & Minimum x component in FMM.\\
+\hline
+Y\_min & 1 & Minimum y component in FMM.\\
+\hline
+Z\_min & 1 & Minimum z component in FMM.\\
+\hline
+source\_px & 1 $\times$ number of particles & particle x momentum components\\
+\hline
+source\_py & 1 $\times$ number of particles & particle y momentum components\\
+\hline
+source\_pz & 1 $\times$ number of particles & particle z momentum components\\
+\hline
+source\_n & 1 $\times$ number of particles & particle charge factors\\
+\hline
+source\_f & 1 $\times$ number of particles & particle mass factors\\
+\hline
+DleafNodes & 1 & number of boxes in FMM\\
+\hline
+t1, t2, $\cdots$, t10 & 1 & CPU time variables\\
+\hline
+tpot & 1 $\times$ number of targets & target potential\\
+\hline
+Dzero & 1 & Spacial scaling factor in FMM\\
+\hline
+tex & 1 $\times$ number of targets & x component of electric field at target\\
+\hline
+tey & 1 $\times$ number of targets & y component of electric field at target\\
+\hline
+tez & 1 $\times$ number of targets & z component of electric field at target\\
+\hline
+source\_x & 1 $\times$ number of particles & x component of particle positions\\
+\hline
+source\_y & 1 $\times$ number of particles & y component of particle positions\\
+\hline
+source\_z & 1 $\times$ number of particles & z component of particle positions\\
+\hline
+target\_x & 1 $\times$ number of targets & x component of target positions\\
+\hline
+target\_y & 1 $\times$ number of targets & y component of target positions\\
+\hline
+target\_z & 1 $\times$ number of targets & z component of target positions\\
+\hline
+countsources & 1 & number of particles\\
+\hline
+sourcefile & 200 & string containing data file name containing initial particle positions?\\
+\hline
+targetfile & 200 & string containing data file name containing target positions?\\
+\hline
+path & 200 & string containing a file name\\
+\hline
+\end{tabular}
+\caption{Table of Starter Global Variables (Continued)}
+\end{table}
+\end{center}
+
+\clearpage
+
+
+\section{LNGRNGINT (Long Range Integrators)}
+
+This procedure contains both the Long Range Integrator and the Modified Long Range Integrator.  In earlier PHAD versions, these were separate procedures.  The bulk of their computations are now done within the same ploop after initializing the DA engine using \texttt{DAINI}.
+
+\subsection{Local Memory}
+
+{\bf\color{red} NEEDS UPDATING}
+
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{3.1in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+num\_of\_selfsources & 1 & Number of sources in a box\\
+\hline
+TEMPONE & 100 & Temporary variable\\
+\hline
+%TEMPTWO & 100 & Temporary variable\\
+%\hline
+%TEMPTHREE & 100 & Temporary variable\\
+%\hline
+%TEMPFOUR & 100 & Temporary variable\\
+%\hline
+C & 1 & Speed of light constant\\
+\hline
+EPSILON0C & 1 & $1 \slash (4 \pi \epsilon_0)$ constant\\
+\hline
+ECHARGE & 1 & elementary charge (charge of an electron)\\
+\hline
+M & 1 & Mass of a proton\\
+\hline
+MOMCONST & 1 & Scaled constant in momentum derivative\\
+\hline
+BOXNO & 100 & Box number \\
+\hline
+INDEX & 1 & Indexing variable\\
+\hline
+I & 1 & Indexing variable\\
+\hline
+node & 1 & Indexing variable\\
+\hline
+LISTSELF & 1 q & particle list\\
+\hline
+POINTS & q 3 & Stores positions for evaluation of box particles\\
+\hline
+EFIELDL & $_\text{order+2}C_3-1$ 3 & Stores electric field expansion for a box\\
+\hline
+RESULTS & q 3 & Stores results of EFIELD evaluation for particles in a box.\\
+\hline
+RELX & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+RELY & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+RELZ & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+NM & 1 & DA Vector initialization variable\\
+\hline
+\end{tabular}
+\caption{Table of Long Range Integrator Local Variables}
+\end{table}
+\end{center}
+
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|p{1in}|p{3.5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+num\_of\_selfsources & 1 & Number of sources in a box\\
+\hline
+PREVNEIGHLIST & q+1 number of particles & List of all neighborhood particles of particle I\\
+\hline
+TEMPLIST & q+1 & Temporary storage of particles in the neighborhood of a box.\\
+\hline
+COMPARELIST & 2q+1 & Stores list comparisons $A \backslash B$ and $B \backslash A$ along with their sizes.\\
+\hline
+TEMPLENGTH & 1 & The size of the temporary list\\
+\hline
+TEMPONE & 100 & Temporary variable\\
+\hline
+TEMPTWO & 100 & Temporary variable\\
+\hline
+TEMPTHREE & 100 & Temporary variable\\
+\hline
+TEMPFOUR & 100 & Temporary variable\\
+\hline
+SUMONE & 1 & Used for computing a sum\\
+\hline
+SUMTWO & 1 & Used for computing a sum\\
+\hline
+SUMTHREE & 1 & Used for computing a sum\\
+\hline
+C & 1 & Speed of light constant\\
+\hline
+EPSILON0C & 1 & $1 \slash (4 \pi \epsilon_0)$ constant\\
+\hline
+ECHARGE & 1 & elementary charge (charge of an electron)\\
+\hline
+M & 1 & Mass of a proton\\
+\hline
+MOMCONST & 1 & Scaled constant in momentum derivative\\
+\hline
+\end{tabular}
+\caption{Table of Modified Long Range Integrator Local Variables}
+\end{table}
+\end{center}
+
+
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{3.5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+BOXNO & 100 & Box number \\
+\hline
+INDEX & 1 & Indexing variable\\
+\hline
+INDEX2 & 1 & Indexing variable\\
+\hline
+I & 1 & Indexing variable\\
+\hline
+J & 1 & Indexing variable\\
+\hline
+node & 1 & Indexing variable\\
+\hline
+LISTSELF & 1 q & particle list\\
+\hline
+POINTS & q 3 & Stores positions for evaluation of box particles\\
+\hline
+EFIELDL & $_\text{order+2}C_3-1$ 3 & Stores electric field expansion for a box\\
+\hline
+RESULT & q 3 & Stores results of EFIELD evaluation for particles in a box.\\
+\hline
+RELX & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+RELY & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+RELZ & 1 number of particles & Relative $x$ coordinates to box center for all particles\\
+\hline
+NM & 1 & DA Vector initialization variable\\
+\hline
+\end{tabular}
+\caption{Table of Modified Long Range Integrator Local Variables (Continued)}
+\end{table}
+\end{center}
+
+\subsection{Long range integrator}
+
+The long range integrator uses the local expansion for the field created by the particles outside a particular particle's neighborhood ($S_i$).  It gives a value for the electric field contribution from these particles.  It computes the steps in the composition chain involving ${\color{red}\phi^{[2]}_{^h \slash 2,2k-1}}$ and the differential equation Eqn. (\ref{secondpart}).  
+
+\begin{equation}
+\hat{F}^{[2]}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+0
+\\
+\\
+0
+\\
+\\
+0
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\tag{\ref{secondpart}}
+\end{equation}
+
+The first three components in Eqn. (\ref{secondpart}) are zeroes, so there is no change to the particle positions.  This implies that the last three components can be integrated directly viewing these equations as we would
+\[\dfrac{\text{d}y}{\text{d}t}=C \hspace{0.5in} y(0)=y_0\]
+which has exact solution $y_0+C \ t$.  The solution to Eqn. (\ref{secondpart}) with initial condition $\hat{Y_i}_0=~[x_i^0 \ y_i^0 \ z_i^0 \ p_{x_i}^0 \ p_{y_i}^0 \ p_{z_i}^0]^\text{T}$ then is
+\begin{equation}
+\hat{Y_i}(h)=\left[
+\begin{array}{c}
+x_i^0
+\\
+\\
+y_i^0
+\\
+\\
+z_i^0
+\\
+\\
+p_{x_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{y_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{z_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\label{longrangesoln}
+\end{equation}
+In the last three components of this equation the sum in the square brackets is computed in the FMM using the FMM scaling.  We now want to adjust these equations to present them in the FMM scaled variables.  Lets first consider one of the differences involved and apply Eqn.\ (\ref{scalingvariables}).
+\begin{align*}
+x_i-x_j&=\big(\text{Dzero} \ \tilde{x}_i + x_{\min} \big) - \big( \text{Dzero} \ \tilde{x}_j + x_{\min} \big)\\
+&=\text{Dzero} \big(\tilde{x}_i - \tilde{x}_j \big)
+\end{align*}
+For the $z$ component,
+\begin{align*}
+\gamma z_i-\gamma z_j&=\big(\text{Dzero} \ \gamma \tilde{z}_i + \gamma z_{\min} \big) - \big( \text{Dzero} \ \gamma \tilde{z}_j + \gamma z_{\min} \big)\\
+&=\text{Dzero} \ \gamma  \big(\tilde{z}_i - \tilde{z}_j \big).
+\end{align*}
+
+We then get that
+\begin{align*}
+[(x_i-x_j)^2+(y_i-y_j)^2+(\gamma z_i-\gamma z_j)^2]^{3 \slash 2}&=[\text{Dzero}^2(\tilde{x}_i-\tilde{x}_j)^2\\
+&\hspace*{6ex}+\text{Dzero}^2(\tilde{y}_i-\tilde{y}_j)^2+\text{Dzero}^2(\gamma\tilde{z}_i-\gamma\tilde{z}_j)^2]^{3 \slash 2}\\
+&=\text{Dzero}^3[(\tilde{x}_i-\tilde{x}_j)^2+(\tilde{y}_i-\tilde{y}_j)^2+\gamma^2(\tilde{z}_i-\tilde{z}_j)^2]^{3 \slash 2}
+\end{align*}
+In terms of the FMM scaling, Eqn.\ (\ref{longrangesoln}) is
+
+\resizebox{1.0\textwidth}{!}{
+\begin{minipage}{1.1\textwidth}
+\begin{equation}
+\hat{Y_i}(h)=\left[
+\begin{array}{c}
+\tilde{x}_i^0
+\\
+\\
+\tilde{y}_i^0
+\\
+\\
+\tilde{z}_i^0
+\\
+\\
+p_{x_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (\tilde{x}_i - \tilde{x}_j)}{\gamma[(\tilde{x}_i-\tilde{x}_j)^2+(\tilde{y}_i-\tilde{y}_j)^2+\gamma^2(\tilde{z}_i-\tilde{z}_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{y_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (\tilde{y}_i - \tilde{y}_j)}{\gamma[(\tilde{x}_i-\tilde{x}_j)^2+(\tilde{y}_i-\tilde{y}_j)^2+\gamma^2(\tilde{z}_i-\tilde{z}_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{z_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j \gamma^2(\tilde{z}_i - \tilde{z}_j)}{\gamma[(\tilde{x}_i-\tilde{x}_j)^2+(\tilde{y}_i-\tilde{y}_j)^2+\gamma^2(\tilde{z}_i-\tilde{z}_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\label{longrangesolnfmm}
+\end{equation}
+\end{minipage}
+}
+
+The sums in square brackets are computed in the FMM as an electric field.  We will denote this as $\tilde{\vec{E}}_i(\tilde{x}_i, \tilde{y}_i, \tilde{z}_i)=[\tilde{E}_{x_i} \ \tilde{E}_{y_i} \ \tilde{E}_{z_i}]$. 
+\begin{equation}
+\hat{Y_i}(h)=\left[
+\begin{array}{c}
+\tilde{x}_i^0
+\\
+\\
+\tilde{y}_i^0
+\\
+\\
+\tilde{z}_i^0
+\\
+\\
+p_{x_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i \ \tilde{E}_{x_i}
+\\
+\\
+p_{y_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i \ \tilde{E}_{y_i}
+\\
+\\
+p_{z_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2 \ \text{Dzero}^2} \ n_i \ \tilde{E}_{z_i}
+\end{array}
+\right]
+\label{longrangesolnfmmE}
+\end{equation}
+
+In PHAD, these lines are used to compute the last three components on the right-hand side of \eqref{longrangesolnfmmE}.
+\begin{lstlisting}
+xsource_px(I,node,JJ):=(TEMPTWO*RESULT(1)|I);
+xsource_py(I,node,JJ):=(TEMPTWO*RESULT(2)|I);
+xsource_pz(I,node,JJ):=source_pz(INDEX) + (TEMPONE*RESULT(3)|I);
+xmod_source_px(I,node,JJ):=source_px(INDEX) + xsource_px(I,node,JJ)/relg;
+xmod_source_py(I,node,JJ):=source_py(INDEX) + xsource_py(I,node,JJ)/relg;
+xmod_source_pz(I,node,JJ):=source_pz(INDEX) + (TEMPTWO*RESULT(3)|I);
+\end{lstlisting}
+
+The variable \texttt{xmod{\_}source{\_}px(I,node,JJ)} is used to store the result of the modified long range integrator which we describe in the next subsection.
+
+\subsection{Modified Long Range Integrator}
+
+The modified long range integrator uses the neighbourhoods from the FMM based on the positions before the \Simo integrator.  In the overall code each modified long range integration is represented by ${\color{blue}\phi^{[2]}_{^h\slash_2,2k}}$.  It solves the differential equation Eqn. (\ref{secondpart}).  
+
+\begin{equation}
+\hat{F}^{[2]}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+0
+\\
+\\
+0
+\\
+\\
+0
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\displaystyle\sum\limits_{j \notin S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\tag{\ref{secondpart}}
+\end{equation}
+
+In this case the sets $S_i$ are based on the previous positions.  In the code the computations are made in terms of the current positions $S_i^*$.  We then need the two sets $S_i \backslash S_i^*$ and $S_i^* \backslash S_i$.  These are found using the COMPARE function.  We will use that 
+\[S_i^\text{c}=\big(S_i^* \backslash S_i \big) \cup \big({S_i^*}^\text{c} \backslash S_i\big)=\big(S_i^* \backslash S_i \big) \cup \big({S_i^*}^\text{c} \backslash (S_i \backslash S_i^*)\big).\]
+So that
+\begin{scriptsize}
+\begin{align*}
+&\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\mathop{\sum}_{j \in S_i^\text{c}}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right] \\
+ &=\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\mathop{\sum}_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} +
+\mathop{\sum}_{j \in {S_i^*}^\text{c} \backslash (S_i \backslash S_i^*)}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} \right]\\
+&=\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\mathop{\sum}_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} +
+\mathop{\sum}_{j \in {S_i^*}^\text{c}}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right.\\
+&\left. \hspace*{79ex} -\mathop{\sum}_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]\\
+&=\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[
+\mathop{\sum}_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} +\tilde{E}_x^*-\mathop{\sum}_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{align*}
+\end{scriptsize}
+
+We get the following modified version of Eqn. (\ref{secondpart}).
+
+\resizebox{\textwidth}{!}{
+\begin{minipage}{1.6\textwidth}
+\begin{equation}
+\hat{F}^{[2]}_i(\hat{Y}_i,\hat{t})=\left[
+\begin{array}{c}
+0
+\\
+\\
+0
+\\
+\\
+0
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_x^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_y^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+\dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_z^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\label{modlngrngint}
+\end{equation}
+\end{minipage}
+}
+
+Equation \ref{modlngrngint} has an exact solution in the same way that Eqn. (\ref{secondpart}) does, and this is the basis of the modified long range integrator.
+
+\resizebox{\textwidth}{!}{
+\begin{minipage}{1.65\textwidth}
+\begin{equation}
+\hat{Y_i}(h)=\left[
+\begin{array}{c}
+x_i^0
+\\
+\\
+y_i^0
+\\
+\\
+z_i^0
+\\
+\\
+p_{x_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_x^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (x_i-x_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{y_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_y^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j (y_i-y_j)}{\gamma[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\\
+\\
+p_{z_i}^0+h \ \dfrac{q^2}{4 \pi \epsilon_0 \ m \ c^2} \ n_i\left[\tilde{E}_z^*+
+\displaystyle\sum\limits_{j \in S_i^* \backslash S_i}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}} -\displaystyle\sum\limits_{j \in S_i \backslash S_i^*}
+ \dfrac{n_j \gamma(z_i-z_j)}{[(x_i-x_j)^2+(y_i-y_j)^2+\gamma^2(z_i-z_j)^2]^{3 \slash 2}}\right]
+\end{array}
+\right]
+\label{modlongrangesoln}
+\end{equation}
+\end{minipage}
+}
+
+The portion of code containing the main computations for the modified long range integrator begin after
+\texttt{IF INITIAL=0;}
+
+The first summation in the last three components on the right-hand side of \eqref{modlongrangesoln} are added to the result of the long range integrator in these lines:
+\begin{small}
+\begin{lstlisting}
+xmod_source_px(I,node,JJ):=xmod_source_px(I,node,JJ)+TEMPONE*SUMONE/relg;
+xmod_source_py(I,node,JJ):=xmod_source_py(I,node,JJ)+TEMPONE*SUMTWO/relg;
+xmod_source_pz(I,node,JJ):=xmod_source_pz(I,node,JJ)+TEMPONE*SUMTHREE;
+\end{lstlisting} 
+\end{small}
+
+The second summation in the last three components on the right-hand side of \eqref{modlongrangesoln} are subtracted in these lines:
+\begin{small}
+\begin{lstlisting}
+xmod_source_px(I,node,JJ):=xmod_source_px(I,node,JJ)-TEMPONE*SUMONE/relg;
+xmod_source_py(I,node,JJ):=xmod_source_py(I,node,JJ)-TEMPONE*SUMTWO/relg;
+xmod_source_pz(I,node,JJ):=xmod_source_pz(I,node,JJ)-TEMPONE*SUMTHREE;
+\end{lstlisting} 
+\end{small}
+
+
+\subsection{Function QSORT}
+\subsubsection*{Local Memory}
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+\end{tabular}
+\caption{Table of QSORT Function Local Variables}
+\end{table}
+\end{center}
+\subsection{Code Description}
+The function QSORT orders the components of a vector.  The vector itself is the only input.  The sorting is done by choosing a pivot from the vector components and putting the components less than the pivot the left of the pivot.  It repeats this process on the components to the left of the vector until there is only one component to the left of the current pivot.  Then it changes the vector components under consideration to those between the previous \text{RIGHT} values.  This continues until there are no more such vectors with lengths more than one and the vector is sorted.
+
+\subsubsection*{Example}
+In this example we will show how the function sorts the vector 
+\[[ \ 8 \hspace{0.125in} 1 \hspace{0.125in} 5 \hspace{0.125in} 4 \hspace{0.125in} 9 \hspace{0.125in} 7 \hspace{0.125in} 3 \hspace{0.125in} 6 \hspace{0.125in} 2  \ ].\]  
+Initially, \texttt{LEFT} is set to $8$ and \texttt{RIGHT} is set to $2$.  The {\color{purple}pivot} is the center (odd length vector) or ``right of center'' (even length vector), here it is the center 9.  Parenthesis are employed to show the current values of \texttt{LEFT} and \texttt{RIGHT}. A vertical line, $|$ to the left of a component, denotes a previous \texttt{RIGHT} values.  Once a component is in its final place it is put in {\color{blue} blue}.
+
+\hspace*{\fill}
+\begin{minipage}[t]{0.3\textwidth}
+$\left[ \Big( 8 \ 1 \ 5 \ 4 \ {\color{purple}9} \ 7 \ 3 \ 6 \ 2  \Big) \right]$
+
+\vspace*{0.125in}
+
+$\left[ \Big( 8 \ 1 \ 5 \ 4  \ {\color{purple}7} \ 3 \ 6 \ 2  \Big)  \ | {\color{blue}9} \right]$
+
+\vspace*{0.125in}
+
+$\left[ \Big(  1 \ 5 \ 4 \ {\color{purple}3} \ 6 \ 2  \Big) \ | {\color{blue}7} \ 8  \ | {\color{blue}9} \right]$
+
+\vspace*{0.125in}
+
+$\left[ \Big(  1 \ 2 \Big) \ | {\color{blue}3} \ 5 \ 4 \ 6  \ | {\color{blue}7} \ 8  \ | {\color{blue}9} \right]$
+
+\vspace*{0.125in}
+
+$\left[ {\color{blue} 1 \ 2}  \ | {\color{blue}3} \ \Big(5 \ {\color{purple}4} \ 6\Big)  \ | 7 \ 8  \ | {\color{blue}9} \right]$
+
+\vspace*{0.125in}
+
+$\left[ {\color{blue} 1 \ 2}  \ | {\color{blue}3 \ |4} \ | \Big( 5 \ 6 \Big)  \ | {\color{blue}7} \ 8  \ | {\color{blue}9} \right]$
+\end{minipage}
+\hspace*{\fill}
+
+\subsection{Function MERGE}
+\subsubsection*{Local Memory}
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+\end{tabular}
+\caption{Table of MERGE Function Local Variables}
+\end{table}
+\end{center}
+\subsection{Code Description}
+The function merge joins two ordered vectors into a single ordered vector.  It takes the two ordered vectors as input and outputs a single ordered vector.
+
+\newpage
+
+\subsubsection*{Example}
+In this example, we will join the two vectors $[ \ 1 \ 4 \hspace{0.06125in} 5 \hspace{0.06125in} 7  \ ]$ and 
+$[ \ 2 \ 3 \hspace{0.06125in} 6 \hspace{0.06125in} 8 \hspace{0.06125in} 9  \ ]$.
+\begin{align*}
+\text{Sorted vector 1} && \text{Sorted vector 2} &&&  \quad  \text{Merged vector}\\
+\left[ {\color{blue} 1} \ 4 \ 5 \ 7 \right] && \left[ {\color{red} 2} \ 3 \ 6 \ 8 \ 9 \right] && \longrightarrow & \quad \left[{\color{blue} 1}\right]\\
+\left[ {\color{red}4} \ 5 \ 7 \right] && \left[ {\color{blue} 2} \ 3 \ 6 \ 8 \ 9 \right] &&\longrightarrow & \quad \left[1 \ {\color{blue} 2} \right]\\
+\left[ {\color{red} 4} \ 5 \ 7 \right] && \left[  {\color{blue} 3} \ 6 \ 8 \ 9 \right] &&\longrightarrow & \quad  \left[1 \ 2 \ {\color{blue} 3} \right]\\
+\left[ {\color{blue} 4} \ 5 \ 7 \right] && \left[   {\color{red} 6} \ 8 \ 9 \right] &&\longrightarrow & \quad  \left[1 \ 2 \ 3 \ {\color{blue} 4} \right]\\
+\left[ {\color{blue} 5} \ 7 \right] && \left[   {\color{red} 6} \ 8 \ 9 \right] &&\longrightarrow & \quad  \left[1 \ 2 \ 3 \ 4 \ {\color{blue} 5} \right]\\
+\left[  {\color{red}7} \right] && \left[   {\color{blue} 6} \ 8 \ 9 \right] &&\longrightarrow & \quad  \left[1 \ 2 \ 3 \ 4 \ 5 \ {\color{blue} 6} \right]\\
+\left[  {\color{blue}7} \right] && \left[  {\color{red}8} \ 9 \right] &&\longrightarrow & \quad  \left[1 \ 2 \ 3 \ 4 \ 5 \ 6 \ {\color{blue} 7} \right]\\
+\left[ \  \right] && \left[  {\color{blue}8 \ 9} \right] &&\longrightarrow & \quad  \left[1 \ 2 \ 3 \ 4 \ 5 \ 6 \ 7 \ {\color{blue} 8 \ 9} \right]\\
+\end{align*}
+Once one of the vectors is empty, as is the case on the last line, the elements in the nonempty vector are appended to the merged vector.
+
+\subsection{Function COMPARE}
+\subsubsection*{Local Memory}
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+\end{tabular}
+\caption{Table of COMPARE Function Local Variables}
+\end{table}
+\end{center}
+\subsection{Code Description}
+The \texttt{COMPARE} function compares two ordered lists $[\  A \ ]$ and $[  \ B \ ]$ and finds $[  \ A  \backslash B \ ]$ and $[  \ B  \backslash A \ ]$.  Its purpose within the code is to  compare the sets $S_{i-1}$ and $S_i$ within the modified long range integrator.  It takes two vectors containing the sorted elements of $A$ and $B$ and returns two vectors with sorted vectors containing $A \backslash B$ and $B \backslash A$.  Within the procedure, a variable \texttt{CHECK} stores the smallest remaining value in $A$.  If this value is smaller than the smallest remaining value in $B$, then \texttt{CHECK} is placed in $A \backslash B$.  If the smallest value of $B$ is smaller than \texttt{CHECK}, the smallest value of $B$ is placed in $B \backslash A$.  When the \texttt{CHECK} is equal to the smallest value in $B$, \texttt{CHECK} is reassigned to the next element of $A$ and nothing is added to $A \backslash B$ nor $B \backslash A$.  Once all elements of either $A$ or $B$ have been exhausted, what remains remains of $B$ is placed in $B \backslash A$ or the remainder of $A$ is placed in $A \backslash B$.  
+
+\newpage
+
+\subsubsection*{Example}
+For this example, we will consider the vectors $[ \ 1 \ 2 \ 6 \ 8 \ ]$ and $[ \ 2 \ 4 \ 8 \ 9 \ ]$. At each step the smallest elements of the sets are compared.  When both elements are equal they are in {\color{red} red} and discarded.  When the smallest element of $A$ is less than the smallest element of $B$ it is colored {\color{blue} blue} and put into {\color{blue} $A\backslash B$}.  When the smallest element of $B$ is less than the smallest element of $A$, it is colored {\color{brown} brown} and placed into {\color{brown} $B \backslash A$}.
+
+\begin{align*}
+&\begin{array}{c}
+$A \ [ \ {\color{blue}1} \ 2 \ 6  \ 8 \ ]$\\
+$B \ [ \ {\color{gray}2} \ 4  \ 8 \ 9 \ ]$\\
+{\color{blue}A \backslash B} = [ \ ]\\
+{\color{brown}B \backslash A} = [ \ ]
+\end{array}&
+&\longrightarrow&
+&\begin{array}{c}
+$[ \ {\color{red}2} \ 6  \ 8 \ ]$\\
+$[ \ {\color{red}2} \ 4   \ 8 \ 9 \ ]$\\
+{\color{blue}A \backslash B} = [ \ 1 \ ]\\
+{\color{brown}B \backslash A} = [ \ ]
+\end{array}\\
+\\
+&\begin{array}{c}
+$[ \  {\color{gray}6}  \ 8 \ ]$\\
+$[ \  {\color{brown}4}  \ 8 \ 9 \ ]$\\
+{\color{blue}A \backslash B} = [ \ 1 \ ]\\
+{\color{brown}B \backslash A} = [ \ ]
+\end{array}&
+&\longrightarrow&
+&\begin{array}{c}
+$[ \  {\color{blue}6}  \ 8 \ ]$\\
+$[  \ {\color{gray}8} \ 9 \ ]$\\
+{\color{blue}A \backslash B} = [ \ 1 \ ]\\
+{\color{brown}B \backslash A} = [ \ 4 \ ]
+\end{array}\\
+\\
+&\begin{array}{c}
+$[   \ {\color{red}8} \ ]$\\
+$[  \ {\color{red}8} \ 9 \ ]$\\
+{\color{blue}A \backslash B} = [ \ 1 \ 6 \ ]\\
+{\color{brown}B \backslash A} = [ \ 4 \ ]
+\end{array}&
+&\longrightarrow&
+&\begin{array}{c}
+$[  \ ]$\\
+$[  \ {\color{brown}9} \ ]$\\
+{\color{blue}A \backslash B} = [ \ 1 \ 6 \ ]\\
+{\color{brown}B \backslash A} = [ \ 4 \ ]
+\end{array}
+\end{align*}
+
+\[A \backslash B = [ \ 1 \ 6 \ ] \qquad B \backslash A= [ \ 4 \ 9 \ ]\]
+
+\clearpage
+
+\section{\Simo Integrator}
+
+{\bf\color{red} NEEDS UPDATING, Describes Picard Integrator}
+
+\subsection{Local Memory}
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|p{1.5in}|p{2.5in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+num\_of\_self\_sources & 1 & number of particles in a box\\
+\hline
+countsourceswithoutself & 1 & number of particles in a neighborhood outside of the box\\
+\hline
+TEMPONE & 100 & Temporary Storage\\
+\hline
+TEMPTWO & 100 & Temporary Storage\\
+\hline
+TEMPTHREE & 100 & Temporary Storage\\
+\hline
+TEMPFOUR & 100 & Temporary Storage\\
+\hline
+NORMPSQ & 1 & Momentum Magnitude\\
+\hline
+BOXNO & 100 & Index Variable\\
+\hline
+INDEX & 1 & Index Variable\\
+\hline
+INDEX2 & 1 & Index Variable\\
+\hline
+I & 1 & Index Variable\\
+\hline
+J & 1 & Index Variable\\
+\hline
+K & 1 & Index Variable\\
+\hline
+L & 1 & Index Variable\\
+\hline
+node & 1 & Index Variable\\
+\hline
+LISTSELF & 1 q & List of particles in box\\
+\hline
+LISTNEIGH & 1 q & List of nonbox neighbour particles\\
+\hline
+GG & order+1 6 & Used to compute F($\phi$(Y))\\
+\hline
+OUTPUT & order+1 1 & storage for polynomial evaluations\\
+\hline
+OUTPUT2 & 1 6 & Storage for polynomial evaluations\\
+\hline
+PHI & order+1 6 $\times$ number of particles & Picard iterate functions\\
+\hline
+PHI2 & order+1 6 $\times$ number of particles & Temporary Picard Method Function\\
+\hline
+STRI & 1000 & String for writing SSV file\\
+\hline
+\end{tabular}
+\caption{Table of Picard Integrator Local Variables}
+\end{table}
+\end{center}
+
+\begin{center}
+\begin{table}[ht]
+\begin{tabular}{|c|c|p{4in}|}
+\hline
+\textbf{Name} & \textbf{Memory} & \textbf{Description}\\
+\hline
+C & 1 & Speed of light constant\\
+\hline
+EPSILON0C & 1 & ECHARGE $\backslash$ ($4 \pi \epsilon_0$)\\
+\hline
+ECHARGE & 1 & the charge of an electron\\
+\hline
+M & 1 & mass of a proton\\
+\hline
+MOMCONST & 1 & Constant in front of momentum derivatives\\
+\hline
+DAEPS & 1 & sets DA vector tolerance\\
+\hline
+CHECK & 1 & Radius of convergence check variable\\
+\hline
+CHECKERROR & 1 & Radius of convergence check variable\\
+\hline
+CHECKVAL & 1 & Radius of convergence check variable\\
+\hline
+DIFF & 1 & Counts the number of radius of convergence errors\\
+\hline
+NM & 1 & DA vector initialization variable\\
+\hline
+POINTS & 1 1 & Input variable to evaluate polynomials ($\Delta t$)\\
+\hline
+DAORDER & 1 & Sets the order of all DA vectors\\
+\hline
+DELT & 1 & Time step size\\
+\hline
+NITER & 1 & number of iterations\\
+\hline
+ORDER & 1 & Sets the number of Picard Iterations\\
+\hline
+EFIELDCOMP & 1 order+1 & External Electric Field Computation Storage\\
+\hline
+BFIELDCOMPX & 1 order+1 & External Magnetic Field $x$ component Computation Storage\\
+\hline
+BFIELDCOMPY & 1 order+1 & External Magnetic Field $y$ component Computation Storage\\
+\hline
+BFIELDCOMPZ & 1 order+1 & External Magnetic Field $z$ component Computation Storage\\
+\hline
+ELAPTM & 1 & The elapsed time\\
+\hline
+\end{tabular}
+\caption{Table of Picard Integrator Local Variables (continued)}
+\end{table}
+\end{center}
+
+\clearpage
+
+\subsection{Code Description}
+
+The Picard Iteration based integrator gives an approximation for the solution to Eqn.\ (\ref{firstpart}).  In the overall code description we denoted to solution to Picard Iteration based integration steps as ${\color{green}\phi^{[1]}_{h,k}}$.  Algorithm \ref{schaumburg-algorithm} gives the general idea for how the Picard Integrator is implemented.  Further details are in the AIC report.
+\begin{algorithm}[hp]
+\caption{Picard Iteration Based Integrator}\label{schaumburg-algorithm}
+\begin{algorithmic}
+\State \textbf{input} $\hat{Y}_0, \ T, \ N, \ \text{Tolerance} $
+\State $\Delta t \gets \frac{T}{N}$
+\For {$i=1 \to N$}
+	\State \text{Compute the ``best'' smaller time step to use } $\frac{\Delta t}{M}$,
+	\State \text{and an appropriate ORDER for the Taylor series }
+	\State \text{that keeps the local truncation error } $\mathcal{O}$(\text{Tolerance}).
+	\State $\hat{t} \gets \frac{\Delta t}{M}$
+	\For {$j=1 \to M$}
+		\State $\phi_0(t) \gets \hat{Y}_0$ 
+		\For {$k=1 \to \text{ORDER}$}  
+			\State $\phi_k(t) \gets \hat{Y}_0+\int^{t}_0 			\mathcal{T}^{k-1}_{s,0}\left[\hat{F}^{[1]}\left(\phi_{k-1}(s),s\right)\right] ds$
+		\EndFor 
+		\State $\hat{Y}_0 \gets \phi_\text{ORDER}(\hat{t})$  \Comment \textit{This is } $\hat{Y}\left( [i-1+j/M] \Delta t\right).$
+    \EndFor
+    \State \text{Write} $\hat{Y}_0$ \Comment \textit{This is } $\hat{Y}(i \Delta t).$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+
+%\appendix
+%\section{Code}
+
+%\clearpage
+
+%\includepdf[pages={1-30}]{code_1_01.pdf}
+
+
+\end{document}
