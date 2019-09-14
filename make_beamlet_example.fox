@@ -1,0 +1,500 @@
+{Creates data for evenly spaced beams on a circle in the yz-plane of radius R with optional center beamlet.  Also creates phad-mpi.input file}
+
+INCLUDE 'C:\Program Files (x86)\COSY 10.0\COSY';
+
+
+PROCEDURE MAIN;
+
+VARIABLE LIGHTSPEED 1;
+VARIABLE PROTON_MASS 1;
+VARIABLE BOLTZMANN_CONS_K 1;
+
+VARIABLE A 1;
+VARIABLE B 1;
+VARIABLE A_HALO 1;
+VARIABLE B_HALO 1;
+VARIABLE TEMPERATURE_IN_KELVIN 1;
+VARIABLE TEMPERATURE_IN_KELVIN_HALO 1;
+VARIABLE M 1;
+VARIABLE GEN_BOLTZMANN 3;
+VARIABLE PHAD_MOMENTUM 3;
+
+
+VARIABLE SPEED 1;
+VARIABLE AMU_TO_KG 1;
+VARIABLE ATOMIC_MASS 1;
+VARIABLE KG_MASS 1;
+
+VARIABLE NUM_OUTER_BEAM 1;
+VARIABLE INNER_BEAM 1;
+VARIABLE R 1;
+VARIABLE N_OUTER_BEAM 1;
+VARIABLE N_INNER_BEAM 1;
+VARIABLE R2 1;
+VARIABLE PHAD_MASS 1;
+VARIABLE CHARGE 1;
+VARIABLE ZSCALE 1;
+{phad-mpi.input variables}
+VARIABLE q_value 1;
+VARIABLE FMM_ORDER 1;
+VARIABLE FMM_EXECUTABLE 1000;
+VARIABLE OUTPUT_RESOLUTION 1;
+VARIABLE SIMO_ORDER 1;
+VARIABLE BINS 1;
+VARIABLE BINNINGTYPE 1;
+VARIABLE timestepsize 1;
+VARIABLE NUM_OF_TIME_STEPS 1;
+VARIABLE OUTPUT_RESOLUTION 1;
+VARIABLE BINARY_INPUT 1;
+VARIABLE LOAD_BALANCE 1;
+VARIABLE TWO_PI 1;
+VARIABLE max_num_of_boxes 1;
+VARIABLE STRI 1000;
+VARIABLE SIGMA 1;
+
+VARIABLE HALO_R 1;
+VARIABLE HALO_SIGMA 1;
+VARIABLE N_HALO 1;
+
+VARIABLE SIMO_ACCURACY 1;
+VARIABLE DELTLIMIT 1;
+
+FUNCTION BOLTZMANN MM KK TT TWICE_PI;
+{Generates random numbers from 3D BOLTZMANN distribution using Box Muller transformation}
+VARIABLE U1 1;
+VARIABLE U2 1;
+VARIABLE U3 1;
+VARIABLE U4 1;
+VARIABLE U5 1;
+VARIABLE U6 1;
+
+VARIABLE Y1 1;
+VARIABLE Y2 1;
+VARIABLE Y3 1;
+VARIABLE Y4 1;
+VARIABLE Y5 1;
+VARIABLE Y6 1;
+
+VARIABLE CONST 1;
+
+
+
+IF TT=0;
+	BOLTZMANN:=0&0&0;
+ELSEIF LO(1);
+	RERAN U1;
+	RERAN U2;
+	RERAN U3;
+	RERAN U4;
+	RERAN U5;
+	RERAN U6;
+	U1:=abs(U1);
+	U2:=abs(U2);
+	U3:=abs(U3);
+	U4:=abs(U4);
+
+	CONST:=SQRT((KK*TT)/(MM));
+
+	Y1:=CONST*SQRT(-2*LOG(U1))*COS(TWICE_PI*U2);
+	Y2:=CONST*SQRT(-2*LOG(U1))*SIN(TWICE_PI*U2);
+	Y3:=CONST*SQRT(-2*LOG(U3))*COS(TWICE_PI*U4);
+
+
+	BOLTZMANN:=Y1&Y2&Y3;
+ENDIF;
+ENDFUNCTION;
+
+FUNCTION VELO2MOM VELO;
+VARIABLE NORMVELO 1;
+NORMVELO:=SQRT(SQR(VELO|1)+SQR(VELO|2)+SQR(VELO|3));
+VELO2MOM:=0&0&0;
+VELSET VELO2MOM 1 VELO|1*(KG_MASS/PROTON_MASS)/(SQRT(LIGHTSPEED-NORMVELO)*SQRT(LIGHTSPEED+NORMVELO));
+VELSET VELO2MOM 2 VELO|2*(KG_MASS/PROTON_MASS)/(SQRT(LIGHTSPEED-NORMVELO)*SQRT(LIGHTSPEED+NORMVELO));
+VELSET VELO2MOM 3 VELO|3*(KG_MASS/PROTON_MASS)/(SQRT(LIGHTSPEED-NORMVELO)*SQRT(LIGHTSPEED+NORMVELO));
+ENDFUNCTION;
+
+FUNCTION SIGN NUM;
+IF NUM<0;
+  SIGN:=-1;
+ELSEIF (1=1);
+  SIGN:=1;
+ENDIF;
+ENDFUNCTION;
+
+
+PROCEDURE NESTED;
+VARIABLE CENTERS 3 N_OUTER_BEAM+INNER_BEAM;
+VARIABLE I 1;
+VARIABLE J 1;
+VARIABLE K 1;
+VARIABLE ANGLE 1;
+VARIABLE TEMP 1;
+VARIABLE U1 1;
+VARIABLE U2 1;
+VARIABLE U3 1;
+VARIABLE X1 1;
+VARIABLE X2 1;
+VARIABLE X3 1;
+VARIABLE P1 1;
+VARIABLE P2 1;
+VARIABLE P3 1;
+VARIABLE Z1 1;
+VARIABLE Z2 1;
+VARIABLE Z3 1;
+VARIABLE CRAN 10;
+VARIABLE WRITEVEC3 3;
+VARIABLE MOMENTUM 1;
+
+VARIABLE LAT_MOM 1;
+
+
+ANGLE:=TWO_PI/NUM_OUTER_BEAM;
+
+
+OPENF 42 'input/positions.ssv' 'UNKNOWN';
+OPENF 43 'input/masses.ssv' 'UNKNOWN';
+OPENF 44 'input/momenta.ssv' 'UNKNOWN';
+OPENF 45 'input/charges.ssv' 'UNKNOWN';
+
+OPENF 51 'output/x_PHAD_0.ssv' 'UNKNOWN';
+OPENF 52 'output/y_PHAD_0.ssv' 'UNKNOWN';
+OPENF 53 'output/z_PHAD_0.ssv' 'UNKNOWN';
+OPENF 54 'output/px_PHAD_0.ssv' 'UNKNOWN';
+OPENF 55 'output/py_PHAD_0.ssv' 'UNKNOWN';
+OPENF 56 'output/pz_PHAD_0.ssv' 'UNKNOWN';
+
+OPENF 61 'beamlet_bolzmann_speed_hist.dat' 'UNKNOWN';
+OPENF 62 'halo_bolzmann_speed_hist.dat' 'UNKNOWN';
+
+LOOP I 1 NUM_OUTER_BEAM;
+CENTERS(I):=R*COS((I-1)*ANGLE);
+CENTERS(I):=CENTERS(I)&R*SIN((I-1)*ANGLE)&0;
+ENDLOOP;
+
+WRITE 6 '..............generating beamlets';
+
+{Generate outer beamlets}
+LOOP I 1 NUM_OUTER_BEAM;
+  LOOP J 1 N_OUTER_BEAM;
+    {GENERATE TWO UNIFORMS IN (0,1)}
+    RERAN U1;
+    RERAN U2;
+    U1:=(U1+1)/2;
+    U2:=(U2+1)/2;
+    {Standard normal N(0,1) to N(MU,SIGMA)}
+    {Box-Muller Transformation}
+    Z1:=SQRT(-2*LOG(U1))*COS(8*ATAN(1)*U2);
+    Z2:=SQRT(-2*LOG(U1))*SIN(8*ATAN(1)*U2);
+    {Standard normal N(0,1) to N(MU,SIGMA)}
+    X1:=SIGMA*Z1+CENTERS(I)|1;
+    X2:=SIGMA*Z2+CENTERS(I)|2;
+    RERAN U3;
+    X3:=ZSCALE*U3;
+    STRI:=SF(X1,'(E22.16)')&' '&SF(X2,'(E22.16)')&' '&SF(X3,'(E22.16)');
+    WRITE 42 STRI;
+    
+    WRITE 51 SF(X1,'(E22.16)');
+    WRITE 52 SF(X2,'(E22.16)');
+    WRITE 53 SF(X3,'(E22.16)');    
+    
+    GEN_BOLTZMANN:=BOLTZMANN(KG_MASS,BOLTZMANN_CONS_K,TEMPERATURE_IN_KELVIN,TWO_PI);
+    
+
+    SPEED:=SQRT(SQR(GEN_BOLTZMANN|1)+SQR(GEN_BOLTZMANN|2)+SQR(GEN_BOLTZMANN|3));
+	STRI:=SF(SPEED,'(E22.16)');
+	WRITE 61 STRI;
+    
+	STRI:=SF(GEN_BOLTZMANN|1,'(E22.16)')&' '&SF(GEN_BOLTZMANN|2,'(E22.16)')&' '&SF(GEN_BOLTZMANN|3,'(E22.16)');
+
+
+    PHAD_MOMENTUM:=VELO2MOM(GEN_BOLTZMANN);
+	STRI:=SF(PHAD_MOMENTUM|1,'(E22.16)')&' '&SF(PHAD_MOMENTUM|2,'(E22.16)')&' '&SF(PHAD_MOMENTUM|3,'(E22.16)');
+	WRITE 44 STRI;
+    
+    WRITE 54 SF(PHAD_MOMENTUM|1,'(E22.16)');
+    WRITE 55 SF(PHAD_MOMENTUM|2,'(E22.16)');
+    WRITE 56 SF(PHAD_MOMENTUM|3,'(E22.16)');
+    
+    STRI:=SF(PHAD_MASS,'(E22.16)');
+    WRITE 43 STRI;
+    STRI:=SF(CHARGE,'(E22.16)');
+    WRITE 45 STRI;
+  ENDLOOP;
+ENDLOOP;
+
+{Generate inner beamlet}
+IF INNER_BEAM=1;
+  LOOP J 1 N_INNER_BEAM;  
+    {GENERATE TWO UNIFORMS IN (0,1)}
+    RERAN U1;
+    RERAN U2;
+    U1:=(U1+1)/2;
+    U2:=(U2+1)/2;
+    {Box-Muller Transformation}
+    Z1:=SQRT(-2*LOG(U1))*COS(8*ATAN(1)*U2);
+    Z2:=SQRT(-2*LOG(U1))*SIN(8*ATAN(1)*U2);
+    {Standard normal N(0,1) to N(MU,SIGMA)}
+    X1:=SIGMA*Z1;
+    X2:=SIGMA*Z2;
+    RERAN U3;
+    X3:=ZSCALE*U3;
+    WRITE 42 SF(X1,'(E22.16)')&' '&SF(X2,'(E22.16)')&' '&SF(X3,'(E22.16)');
+
+    WRITE 51 SF(X1,'(E22.16)');
+    WRITE 52 SF(X2,'(E22.16)');
+    WRITE 53 SF(X3,'(E22.16)');
+    
+    GEN_BOLTZMANN:=BOLTZMANN(KG_MASS,BOLTZMANN_CONS_K,TEMPERATURE_IN_KELVIN,TWO_PI);
+        
+    SPEED:=SQRT(SQR(GEN_BOLTZMANN|1)+SQR(GEN_BOLTZMANN|2)+SQR(GEN_BOLTZMANN|3));
+	STRI:=SF(SPEED,'(E22.16)');
+	WRITE 61 STRI;
+	
+	STRI:=SF(GEN_BOLTZMANN|1,'(E22.16)')&' '&SF(GEN_BOLTZMANN|2,'(E22.16)')&' '&SF(GEN_BOLTZMANN|3,'(E22.16)');
+
+    PHAD_MOMENTUM:=VELO2MOM(GEN_BOLTZMANN);
+    PHAD_MOMENTUM:=VELO2MOM(GEN_BOLTZMANN);
+	STRI:=SF(PHAD_MOMENTUM|1,'(E22.16)')&' '&SF(PHAD_MOMENTUM|2,'(E22.16)')&' '&SF(PHAD_MOMENTUM|3,'(E22.16)');
+	WRITE 44 STRI;
+
+    WRITE 54 SF(PHAD_MOMENTUM|1,'(E22.16)');
+    WRITE 55 SF(PHAD_MOMENTUM|2,'(E22.16)');
+    WRITE 56 SF(PHAD_MOMENTUM|3,'(E22.16)');
+        
+    STRI:=SF(PHAD_MASS,'(E22.16)');
+    WRITE 43 STRI;
+    STRI:=SF(CHARGE,'(E22.16)');
+    WRITE 45 STRI;
+  ENDLOOP;
+ENDIF;
+
+WRITE 6 '..............generating halo';
+
+LOOP J 1 N_HALO;
+	TEMP:=0;
+	WHILE TEMP=0;
+	  RERAN U1;
+	  RERAN U2;
+	  IF SQR(U1)+SQR(U2)<1;
+	    TEMP:=1;
+	  ENDIF;
+	ENDWHILE;
+
+{{  Uncomment for gaussian
+    {GENERATE TWO UNIFORMS IN (0,1)}
+    RERAN U1;
+    RERAN U2;    
+    U1:=(U1+1)/2;
+    U2:=(U2+1)/2;
+    {Box-Muller Transformation}
+    Z1:=SQRT(-2*LOG(U1))*COS(8*ATAN(1)*U2);
+    Z2:=SQRT(-2*LOG(U1))*SIN(8*ATAN(1)*U2);
+    {Standard normal N(0,1) to N(MU,SIGMA)}
+    X1:=HALO_SIGMA*Z1;
+    X2:=HALO_SIGMA*Z2;
+}}
+    X1:=HALO_SIGMA*U1;
+    X2:=HALO_SIGMA*U2;
+    RERAN U3;
+    X3:=ZSCALE*U3;
+    WRITE 42 SF(X1,'(E22.16)')&' '&SF(X2,'(E22.16)')&' '&SF(X3,'(E22.16)');
+    
+    WRITE 51 SF(X1,'(E22.16)');
+    WRITE 52 SF(X2,'(E22.16)');
+    WRITE 53 SF(X3,'(E22.16)');    
+    GEN_BOLTZMANN:=BOLTZMANN(KG_MASS,BOLTZMANN_CONS_K,TEMPERATURE_IN_KELVIN_HALO,TWO_PI);
+    
+    SPEED:=SQRT(SQR(GEN_BOLTZMANN|1)+SQR(GEN_BOLTZMANN|2)+SQR(GEN_BOLTZMANN|3));
+	STRI:=SF(SPEED,'(E22.16)');
+	WRITE 62 STRI;
+   
+	STRI:=SF(GEN_BOLTZMANN|1,'(E22.16)')&' '&SF(GEN_BOLTZMANN|2,'(E22.16)')&' '&SF(GEN_BOLTZMANN|3,'(E22.16)');
+    PHAD_MOMENTUM:=VELO2MOM(GEN_BOLTZMANN);
+    PHAD_MOMENTUM:=VELO2MOM(GEN_BOLTZMANN);
+	STRI:=SF(PHAD_MOMENTUM|1,'(E22.16)')&' '&SF(PHAD_MOMENTUM|2,'(E22.16)')&' '&SF(PHAD_MOMENTUM|3,'(E22.16)');
+	WRITE 44 STRI;
+
+    WRITE 54 SF(PHAD_MOMENTUM|1,'(E22.16)');
+    WRITE 55 SF(PHAD_MOMENTUM|2,'(E22.16)');
+    WRITE 56 SF(PHAD_MOMENTUM|3,'(E22.16)');
+        
+    STRI:=SF(PHAD_MASS,'(E22.16)');
+    WRITE 43 STRI;
+    STRI:=SF(CHARGE,'(E22.16)');
+    WRITE 45 STRI;
+ENDLOOP;
+
+CLOSEF 61;
+CLOSEF 62;
+
+CLOSEF 51;
+CLOSEF 52;
+CLOSEF 53;
+CLOSEF 54;
+CLOSEF 55;
+CLOSEF 56;
+
+CLOSEF 42;
+CLOSEF 43;
+CLOSEF 44;
+
+stri:=NUM_OUTER_BEAM*N_OUTER_BEAM+INNER_BEAM*N_INNER_BEAM+N_HALO;
+OPENF 45 'phad-mpi.input' 'UNKNOWN';
+WRITE 45 'tmp/';                        {Line 01 FMM data files}
+WRITE 45 'input/positions.ssv';         {Line 02 ssv file with initial positions} 
+WRITE 45 'input/charges.ssv';           {Line 03 data file containing particle charges}
+WRITE 45 SI(stri);                      {Line 04 number of particles}
+WRITE 45 'input/positions.ssv';         {Line 05 locations where fmm computes field values}
+WRITE 45 SI(stri);                      {Line 06 number of particles plus number of locations to compute field}
+WRITE 45 SI(q_value);                   {Line 07 fmm q=LargestNumberOfParticlesAllowedInNeighborhood}
+WRITE 45 FMM_EXECUTABLE;                {Line 08 C++ binary file name}  
+WRITE 45 SI(FMM_ORDER);                 {Line 09 FMM Order}
+WRITE 45 SI(0);                         {Line 10 0 for asci input}   
+WRITE 45 SI(LOAD_BALANCE);              {Line 11 0 or 1 for balanced fmm}  
+WRITE 45 SI(max_num_of_boxes);          {Line 12 Largest Number of boxes}
+WRITE 45 'input/masses.ssv';            {Line 13 data file containing particle masses and charges}
+WRITE 45 'input/momenta.ssv';           {Line 14 file name of ssv containing initial momentum}
+WRITE 45 SI(SIMO_ORDER);                {Line 15 Largest order for Simo integration}
+WRITE 45 SF(SIMO_ACCURACY,'(E22.16)');  {Line 16 Accuracy of Simo integrator}
+WRITE 45 SF(DELTLIMIT,'(E22.16)');      {Line 17 Minimum Limit for a Simo Time Step}
+WRITE 45 SI(BINS);                      {Line 18 Number of Time-Bins}
+WRITE 45 SI(BINNINGTYPE);               {Line 19 Type of Binning}
+WRITE 45 SF(timestepsize,'(E22.16)');   {Line 20 PHAD timestep size}
+WRITE 45 SI(NUM_OF_TIME_STEPS);         {Line 21 Number of PHAD timesteps to perform}
+WRITE 45 SI(OUTPUT_RESOLUTION);         {Line 22 Number of timesteps per output}
+WRITE 45 SI(0);                         {Line 23 Number of electrons for electron cooling application 0=No Cooling Electrons}
+WRITE 45 SI(0);                         {Line 24 flag indicating phad needs to be relaunched}
+CLOSEF 45;
+
+
+ENDPROCEDURE; {NESTED}
+
+{Constants}
+BOLTZMANN_CONS_K:=1.38064852*10^(-23);
+LIGHTSPEED:=299792458;
+PROTON_MASS:=1.6726219*10^(-27);
+TWO_PI:=8*ATAN(1);
+AMU_TO_KG:=1.660539*10^(-27);
+
+{BEGIN USER SPECIFIED VARIABLES}
+{User specified temperature}
+TEMPERATURE_IN_KELVIN:=200*10^(-3);  {beamlet temperature}
+TEMPERATURE_IN_KELVIN_HALO:=200*10^(-3);  {halo temperature}
+
+{user specified phad-mpi-input parameters}
+LOAD_BALANCE:=1;  {Load balance for FMM 1 to turn on load balancing 0 to turn it off.}
+q_value:=60;
+FMM_ORDER:=6;
+FMM_EXECUTABLE:='./fmmcpp.intel';  {Command to execute fmm may also be ./fmmcpp.intel}
+SIMO_ORDER:=10;
+NUM_OF_TIME_STEPS:=850;
+OUTPUT_RESOLUTION:=1;
+timestepsize:=5E-5;
+SIMO_ACCURACY:=0.1750200000000000E-014;
+DELTLIMIT:=2*0.8751*10^(-15);
+BINS:=3;
+BINNINGTYPE:=1;
+max_num_of_boxes:=90000;
+
+{user specified atomic mass of particle}
+ATOMIC_MASS:=0.000548597;
+
+{Not user specified}
+KG_MASS:=ATOMIC_MASS*AMU_TO_KG;
+
+{User specify beam types}
+NUM_OUTER_BEAM:=8;  {Number of outer beamlets}
+INNER_BEAM:=1;  {Inner beam 1 or 0}
+R:=5*10^(-6);  {Outer radius of beamlet centers}
+N_OUTER_BEAM:=10000;  {Number of particles in outer beamlets}
+N_INNER_BEAM:=N_OUTER_BEAM;  {Number of particles in center beamlet}
+R2:=10^(-6);  {Beamlet Radius}
+
+{user specify}
+SIGMA:=R2/sqrt(2*LOG(2));  {Specify standard deviation of x,y spacial distribution}
+ZSCALE:=R2/20;  {Scale of uniform distribution of z spacial coordinates}
+
+{Not user specified}
+PHAD_MASS:=ATOMIC_MASS*AMU_TO_KG/PROTON_MASS;  {Scaled phad mass}
+
+{user specify}
+CHARGE:=-1;  {Charge of particles}
+
+{user specify}
+HALO_R:=30*10^(-6);  
+HALO_SIGMA:=HALO_R/3;  {In default case this sigma is the actual halo radius for uniform disribution}
+N_HALO:=20000;  {Number of halo particles}
+
+{END USER SPECIFIED VARIABLES}
+
+{base and exponent for BOLTZMANN distribution, Not user specified}
+A:=(KG_MASS/(8*ATAN(1)*BOLTZMANN_CONS_K*TEMPERATURE_IN_KELVIN))^(3/2);
+B:=-KG_MASS/(2*BOLTZMANN_CONS_K*TEMPERATURE_IN_KELVIN);
+A_HALO:=(KG_MASS/(8*ATAN(1)*BOLTZMANN_CONS_K*TEMPERATURE_IN_KELVIN_HALO))^(3/2);
+B_HALO:=-KG_MASS/(2*BOLTZMANN_CONS_K*TEMPERATURE_IN_KELVIN_HALO);
+
+OPENF 71 'beamlet_bolzmann_const.dat' 'UNKNOWN';
+WRITE 71 SI(0); {SEEMS LIKE FIRST LINE NOT READ BY PYTHON}
+OPENF 72 'halo_bolzmann_const.dat' 'UNKNOWN';
+WRITE 72 SI(0); {SEEMS LIKE FIRST LINE NOT READ BY PYTHON}
+
+
+WRITE 6 '*********BEAMLET RELATED INPUTS GIVEN*********';
+IF INNER_BEAM=1;
+  STRI:='EXAMPLE HAS INNER BEAM WITH ';
+ELSEIF INNER_BEAM=0;
+  STRI:='EXAMPLE HAS NO INNER BEAM WITH ';
+ELSEIF (1=1);
+  WRITE 6 'ERROR: INNER_BEAM MUST BE 0 OR 1';
+  QUIT 0;
+ENDIF;
+STRI:=STRI&SI(NUM_OUTER_BEAM)&' OUTER BEAMLETS.';
+WRITE 6 STRI;
+WRITE 6 'TOTAL CHARGE '&ST(CHARGE*1.602176565*10^(-19)*(NUM_OUTER_BEAM*N_OUTER_BEAM+N_INNER_BEAM+N_HALO)*10^15)&' fC';
+WRITE 6 'NUMBER OF PARTICLES '&SI(NUM_OUTER_BEAM*N_OUTER_BEAM+INNER_BEAM*N_INNER_BEAM+N_HALO);
+
+WRITE 6 '*********PHAD RELATED INPUTS GIVEN*********';
+WRITE 6 'TIME STEPS USED  '&ST(NUM_OF_TIME_STEPS);
+
+WRITE 6 '*********SPACIAL DISTRIBUTION INFORMATION*********';
+WRITE 6 'OUTER RADIUS  '&ST(R);
+WRITE 6 'BEAM RADIUS  '&ST(R2);
+WRITE 6 'BEAM RADUS/OUTER RADIUS  '&ST(R2/R);
+WRITE 6 'GAUSSIAN CONSTANT '&ST(1/SQRT(8*ATAN(1)*SQR(SIGMA)));
+WRITE 6 'HALF CONSTANT '&ST(1/(2*SQRT(8*ATAN(1)*SQR(SIGMA))));
+WRITE 6 'GAUSSIAN EXPONENT '&ST(-1/(2*SQR(SIGMA)));
+WRITE 6 '*********BEAMLET MOMENTUM DISTRIBUTION INFORMATION*********';
+WRITE 6 'COEFFICIENT '&ST(A);
+WRITE 6 'EXPONENT '&ST(B);
+WRITE 6 'DISTRIBUTION MEAN SPEED:  '&ST(1/sqrt(-B)*2/sqrt(4*atan(1)));
+WRITE 6 'SPEED DISTRIBUTION EXPONENT:   '&ST(B);
+WRITE 6 'SPEED DISTRIBUTION CONSTANT:   '&ST(2*TWO_PI*A);
+WRITE 6 'SPEED DISTRIBUTION PEAK:  '&ST(2*TWO_PI*A*1/(-B)*EXP(B/(-B)));
+WRITE 6 'SPEED DISTRIBUTION PEAK LOCATION:   '&ST(1/SQRT(-B));
+WRITE 71 SF(2*TWO_PI*A,'(E22.16)');
+WRITE 71 SF(B,'(E22.16)');
+WRITE 6 '*********HALO MOMENTUM DISTRIBUTION INFORMATION*********';
+{base and exponent for BOLTZMANN distribution, Not user specified}
+WRITE 6 'COEFFICIENT '&ST(A_HALO);
+WRITE 6 'EXPONENT '&ST(B_HALO);
+WRITE 6 'DISTRIBUTION MEAN SPEED:  '&ST(1/sqrt(-B_HALO)*2/sqrt(4*atan(1)));
+WRITE 6 'SPEED DISTRIBUTION EXPONENT:   '&ST(B_HALO);
+WRITE 6 'SPEED DISTRIBUTION CONSTANT:   '&ST(2*TWO_PI*A_HALO);
+WRITE 6 'SPEED DISTRIBUTION PEAK:  '&ST(2*TWO_PI*A_HALO*1/(-B_HALO)*EXP(B_HALO/(-B_HALO)));
+WRITE 6 'SPEED DISTRIBUTION PEAK LOCATION:   '&ST(1/SQRT(-B_HALO));
+
+WRITE 72 SF(2*TWO_PI*A_HALO,'(E22.16)');
+WRITE 72 SF(B_HALO,'(E22.16)');
+
+CLOSEF 71;
+CLOSEF 72;
+
+WRITE 6 '..................................Generating data';
+NESTED;
+WRITE 6 '..................................Done generating data';
+
+ENDPROCEDURE; {MAIN}
+
+MAIN;
+
+END;
